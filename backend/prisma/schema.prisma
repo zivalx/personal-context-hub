@@ -1,0 +1,100 @@
+// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and ownership
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // Hashed password
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  topics    Topic[]
+  captures  Capture[]
+  resources Resource[]
+
+  @@map("users")
+}
+
+// Topic model - user-created categories for organizing content
+model Topic {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  color       String?  @default("#3B82F6") // Hex color for UI display
+  icon        String?  // Icon name or emoji
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resources Resource[]
+
+  @@map("topics")
+  @@index([userId])
+}
+
+// Capture model - content saved from extension or web app
+model Capture {
+  id          String    @id @default(uuid())
+  type        String    // "text", "link", "note", "quote"
+  title       String?
+  content     String    // Main content (text, URL, etc.)
+  source      String?   // Source URL or application
+  summary     String?   // AI-generated summary
+  tags        String[]  @default([]) // Array of tag strings
+  metadata    Json?     // Flexible JSON for additional data
+  embedding   String?   // Vector embedding for semantic search (stored as text)
+  userId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resources Resource[]
+
+  @@map("captures")
+  @@index([userId])
+  @@index([type])
+}
+
+// Resource model - items within topics, can link to captures
+model Resource {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  type        String   // "capture", "note", "external_link"
+  order       Int      @default(0) // For custom ordering within a topic
+
+  // Optional link to a capture
+  captureId   String?
+  capture     Capture? @relation(fields: [captureId], references: [id], onDelete: SetNull)
+
+  // Custom content (for notes or external links)
+  content     String?
+  url         String?
+
+  topicId     String
+  topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("resources")
+  @@index([topicId])
+  @@index([userId])
+  @@index([captureId])
+}

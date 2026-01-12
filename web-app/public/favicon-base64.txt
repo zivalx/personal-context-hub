@@ -1,0 +1,15 @@
+To create PNG favicons, you can either:
+
+1. Use an online converter to convert favicon.svg to PNG:
+   - Go to https://www.favicon-generator.org/
+   - Upload the favicon.svg file
+   - Download the generated PNG files
+
+2. Or use a design tool like Figma, Illustrator, or Photoshop
+
+3. Or use ImageMagick command line:
+   magick favicon.svg -resize 32x32 favicon.png
+   magick favicon.svg -resize 180x180 apple-touch-icon.png
+
+For now, the SVG favicon will work perfectly in all modern browsers (Chrome, Firefox, Edge, Safari).
+The browser will automatically use favicon.svg from the public folder.

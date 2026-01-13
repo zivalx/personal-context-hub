@@ -5,6 +5,7 @@ import authRoutes from './routes/authRoutes.js';
 import topicsRoutes from './routes/topicsRoutes.js';
 import capturesRoutes from './routes/capturesRoutes.js';
 import resourcesRoutes from './routes/resourcesRoutes.js';
+import searchRoutes from './routes/searchRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -58,6 +59,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/topics', topicsRoutes);
 app.use('/api/captures', capturesRoutes);
+app.use('/api/search', searchRoutes);
 app.use('/api', resourcesRoutes); // Resources routes include /topics/:topicId/resources
 
 // 404 Handler

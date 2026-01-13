@@ -3,33 +3,66 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 250 30% 9%;
+    --foreground: 250 20% 95%;
+    --card: 250 25% 12%;
+    --card-foreground: 250 20% 95%;
+    --primary: 265 70% 60%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 250 20% 20%;
+    --muted-foreground: 250 15% 65%;
+    --border: 250 20% 20%;
+    --input: 250 20% 20%;
+    --ring: 265 70% 60%;
+    --gradient-ai: linear-gradient(135deg, hsl(265 70% 60%), hsl(280 70% 55%));
+  }
+
   body {
-    @apply bg-white text-gray-900;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    min-width: 350px;
   }
 }
 
 @layer components {
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-xl;
+  }
+
+  .ai-gradient-bg {
+    background: var(--gradient-ai);
+  }
+
   .btn {
-    @apply px-3 py-2 rounded-lg font-medium transition-colors duration-200 text-sm;
+    @apply px-3 py-2 rounded-lg font-medium transition-all duration-200 text-sm;
   }
 
   .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700;
+    @apply ai-gradient-bg text-white hover:opacity-90 shadow-lg shadow-primary/20;
   }
 
   .btn-secondary {
-    @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+    @apply bg-muted text-foreground hover:bg-muted/80 border border-border;
   }
 
   .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm;
+    @apply w-full px-3 py-2 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground;
   }
 
   .textarea {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-sm;
+    @apply w-full px-3 py-2 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground;
   }
 
   .label {
-    @apply block text-xs font-medium text-gray-700 mb-1;
+    @apply block text-xs font-medium text-muted-foreground mb-1;
+  }
+
+  .success-message {
+    @apply bg-green-500/10 text-green-400 border border-green-500/30 text-xs p-2 rounded-lg mb-3;
+  }
+
+  .error-message {
+    @apply bg-red-500/10 text-red-400 border border-red-500/30 text-xs p-2 rounded-lg mb-3;
   }
 }

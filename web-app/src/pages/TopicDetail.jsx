@@ -41,16 +41,29 @@ function CaptureItem({ resource, onDelete, onEdit }) {
   };
 
   const displayContent = resource.description || resource.content || resource.url || '';
-  const displaySource = resource.url ? (() => {
+  const sourceUrl = resource.url || resource.capture?.source;
+  const displaySource = sourceUrl ? (() => {
     try {
-      return new URL(resource.url).hostname;
+      return new URL(sourceUrl).hostname;
     } catch {
       return null;
     }
-  })() : resource.capture?.source;
+  })() : null;
+
+  const handleClick = () => {
+    if (sourceUrl) {
+      window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   return (
-    <div className="glass-card-hover p-4 group">
+    <div
+      className={cn(
+        "glass-card-hover p-4 group",
+        sourceUrl && "cursor-pointer"
+      )}
+      onClick={handleClick}
+    >
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3 flex-1">
           <div className={cn("p-2 rounded-lg", getTypeColor())}>
@@ -76,19 +89,22 @@ function CaptureItem({ resource, onDelete, onEdit }) {
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded ml-2">
+            <button
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded ml-2"
+              onClick={(e) => e.stopPropagation()}
+            >
               <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onEdit(resource)}>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(resource); }}>
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
-              onClick={() => onDelete(resource.id)}
+              onClick={(e) => { e.stopPropagation(); onDelete(resource.id); }}
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete

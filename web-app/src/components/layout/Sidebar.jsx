@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   Layers,
   Inbox,
@@ -11,6 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { SearchModal } from "@/components/search/SearchModal";
 
 const navigation = [
   { name: "All Items", icon: Layers },
@@ -21,6 +23,20 @@ const navigation = [
 export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], onCreateTopic }) {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const [showSearch, setShowSearch] = useState(false);
+
+  // Keyboard shortcut for search (Cmd+K or Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -41,12 +57,18 @@ export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], o
 
       {/* Search */}
       <div className="p-3">
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/50 text-muted-foreground hover:bg-muted transition-colors text-sm">
+        <button
+          onClick={() => setShowSearch(true)}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/50 text-muted-foreground hover:bg-muted transition-colors text-sm"
+        >
           <Search className="w-4 h-4" />
           <span>Search...</span>
           <kbd className="ml-auto font-mono text-xs bg-background/50 px-1.5 py-0.5 rounded">⌘K</kbd>
         </button>
       </div>
+
+      {/* Search Modal */}
+      <SearchModal open={showSearch} onOpenChange={setShowSearch} />
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-2">
@@ -54,7 +76,10 @@ export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], o
           {navigation.map((item) => (
             <button
               key={item.name}
-              onClick={() => onItemSelect?.(item.name)}
+              onClick={() => {
+                onItemSelect?.(item.name);
+                navigate('/');
+              }}
               className={cn(
                 "nav-item w-full justify-between",
                 activeItem === item.name && "active"

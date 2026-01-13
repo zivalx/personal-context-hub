@@ -12,11 +12,11 @@ import {
 interface TopicCardProps {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   color: string;
   itemCount: number;
-  linkCount: number;
-  noteCount: number;
+  linkCount?: number;
+  noteCount?: number;
   lastUpdated: string;
   className?: string;
   style?: React.CSSProperties;
@@ -25,11 +25,11 @@ interface TopicCardProps {
 export function TopicCard({
   id,
   name,
-  description,
+  description = '',
   color,
   itemCount,
-  linkCount,
-  noteCount,
+  linkCount = 0,
+  noteCount = 0,
   lastUpdated,
   className,
   style
@@ -53,7 +53,10 @@ export function TopicCard({
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className={cn("w-3 h-3 rounded-full", color)} />
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: color }}
+          />
           <h3 className="font-medium text-foreground">{name}</h3>
         </div>
         <DropdownMenu>

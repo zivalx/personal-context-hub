@@ -48,7 +48,7 @@ router.post(
  * @access  Private
  */
 router.put(
-  '/:id',
+  '/resources/:id',
   [
     body('title').optional().trim().notEmpty().withMessage('Title cannot be empty'),
     body('description').optional().trim(),
@@ -69,7 +69,7 @@ router.put(
  * @desc    Delete a resource
  * @access  Private
  */
-router.delete('/:id', deleteResource);
+router.delete('/resources/:id', deleteResource);
 
 /**
  * @route   PUT /api/topics/:topicId/resources/reorder

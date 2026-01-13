@@ -184,3 +184,11 @@ export const resourcesAPI = {
     });
   },
 };
+
+// Search API
+export const searchAPI = {
+  globalSearch: async (query, limit = 20) => {
+    const params = new URLSearchParams({ q: query, limit: limit.toString() });
+    return fetchWithAuth(`/api/search?${params.toString()}`);
+  },
+};

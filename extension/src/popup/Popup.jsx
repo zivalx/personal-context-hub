@@ -158,11 +158,10 @@ const Popup = () => {
         }
         captureData.content = JSON.stringify(todoItems);
       } else {
-        if (!captureContent.trim()) {
-          setCaptureError('Please enter content');
-          return;
+        // Content is optional for link and note types
+        if (captureContent.trim()) {
+          captureData.content = captureContent;
         }
-        captureData.content = captureContent;
       }
 
       // Create capture

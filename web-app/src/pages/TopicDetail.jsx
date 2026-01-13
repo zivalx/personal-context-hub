@@ -120,7 +120,12 @@ function ResourceCard({ resource, onDelete, onEdit, onBookmarkToggle, onTodoTogg
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
-                onClick={(e) => { e.stopPropagation(); onDelete(resource.id); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  // Use setTimeout to prevent modal from opening
+                  setTimeout(() => onDelete(resource.id, true), 0);
+                }}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete
@@ -197,6 +202,7 @@ export default function TopicDetail() {
     content: '',
     url: '',
   });
+  const [newTodoItemInModal, setNewTodoItemInModal] = useState('');
 
   // Speech to text for Add Resource
   const addResourceSpeech = useSpeechToText();
@@ -228,6 +234,8 @@ export default function TopicDetail() {
   const { data: topicData, isLoading: topicLoading } = useQuery({
     queryKey: ['topic', id],
     queryFn: () => topicsAPI.getById(id),
+    refetchOnWindowFocus: true,
+    refetchInterval: 5000, // Refetch every 5 seconds to catch extension updates
   });
 
   // Fetch all topics for sidebar
@@ -397,8 +405,13 @@ export default function TopicDetail() {
     updateResourceMutation.mutate({ resourceId: editResource.id, resourceData });
   };
 
-  const handleDeleteResource = (resourceId) => {
+  const handleDeleteResource = (resourceId, fromDropdown = false) => {
     if (confirm('Are you sure you want to delete this resource?')) {
+      if (fromDropdown) {
+        // Close any potentially opening modal before deleting
+        setSelectedResource(null);
+        setShowResourceDetail(false);
+      }
       deleteResourceMutation.mutate(resourceId);
     }
   };
@@ -419,7 +432,7 @@ export default function TopicDetail() {
       };
 
       await resourcesAPI.update(resourceId, resourceData);
-      queryClient.invalidateQueries(['topic', id]);
+      await queryClient.refetchQueries(['topic', id]);
     } catch (error) {
       toast.error("Failed to update todo item");
     }
@@ -428,6 +441,32 @@ export default function TopicDetail() {
   const handleCopyContent = (content) => {
     navigator.clipboard.writeText(content);
     toast.success("Content copied to clipboard!");
+  };
+
+  const handleAddTodoItemInModal = async (resourceId) => {
+    if (!newTodoItemInModal.trim()) return;
+
+    const resource = resources.find(r => r.id === resourceId);
+    if (!resource || resource.type !== 'todo') return;
+
+    try {
+      const todoItems = JSON.parse(resource.content || '[]');
+      todoItems.push({ text: newTodoItemInModal.trim(), completed: false });
+
+      const resourceData = {
+        title: resource.title,
+        description: resource.description,
+        type: resource.type,
+        content: JSON.stringify(todoItems),
+      };
+
+      await resourcesAPI.update(resourceId, resourceData);
+      await queryClient.refetchQueries(['topic', id]);
+      setNewTodoItemInModal('');
+      toast.success("Todo item added!");
+    } catch (error) {
+      toast.error("Failed to add todo item");
+    }
   };
 
   const handleOpenEditTopic = () => {
@@ -775,13 +814,18 @@ export default function TopicDetail() {
       {/* Resource Detail Modal */}
       <Dialog open={showResourceDetail} onOpenChange={setShowResourceDetail}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          {selectedResource && (
+          {(() => {
+            // Get fresh resource data from query
+            const currentResource = selectedResource && resources.find(r => r.id === selectedResource.id) || selectedResource;
+            if (!currentResource) return null;
+
+            return (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   {(() => {
                     const getIcon = () => {
-                      switch (selectedResource.type) {
+                      switch (currentResource.type) {
                         case "external_link": return <Link2 className="w-5 h-5" />;
                         case "note": return <StickyNote className="w-5 h-5" />;
                         case "capture": return <FileText className="w-5 h-5" />;
@@ -791,37 +835,42 @@ export default function TopicDetail() {
                     };
                     return getIcon();
                   })()}
-                  {selectedResource.title}
+                  <span>{currentResource.title}</span>
+                  {currentResource.type === 'todo' && (() => {
+                    try {
+                      const todoItems = JSON.parse(currentResource.content || '[]');
+                      const completed = todoItems.filter(item => item.completed).length;
+                      return (
+                        <span className="text-sm font-normal text-muted-foreground">
+                          ({completed}/{todoItems.length})
+                        </span>
+                      );
+                    } catch {
+                      return null;
+                    }
+                  })()}
                 </DialogTitle>
-                {selectedResource.description && (
-                  <DialogDescription>{selectedResource.description}</DialogDescription>
+                {currentResource.description && (
+                  <DialogDescription>{currentResource.description}</DialogDescription>
                 )}
               </DialogHeader>
 
               <div className="py-4">
-                {selectedResource.type === 'todo' ? (
+                {currentResource.type === 'todo' ? (
                   (() => {
                     let todoItems = [];
                     try {
-                      todoItems = JSON.parse(selectedResource.content || '[]');
+                      todoItems = JSON.parse(currentResource.content || '[]');
                     } catch {
                       todoItems = [];
                     }
-                    const completedCount = todoItems.filter(item => item.completed).length;
-
                     return (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                          <span className="text-sm font-medium">Progress</span>
-                          <span className="text-sm text-muted-foreground">
-                            {completedCount} / {todoItems.length} completed
-                          </span>
-                        </div>
+                      <div className="space-y-3">
                         <div className="space-y-2">
                           {todoItems.map((item, index) => (
                             <div key={index} className="flex items-start gap-3 py-1 group">
                               <button
-                                onClick={() => handleTodoToggle(selectedResource.id, index)}
+                                onClick={() => handleTodoToggle(currentResource.id, index)}
                                 className="mt-0.5 shrink-0"
                               >
                                 {item.completed ? (
@@ -839,6 +888,28 @@ export default function TopicDetail() {
                             </div>
                           ))}
                         </div>
+                        <div className="flex gap-2 pt-2 border-t border-border">
+                          <Input
+                            placeholder="Add new item..."
+                            value={newTodoItemInModal}
+                            onChange={(e) => setNewTodoItemInModal(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddTodoItemInModal(currentResource.id);
+                              }
+                            }}
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleAddTodoItemInModal(currentResource.id)}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     );
                   })()
@@ -847,13 +918,13 @@ export default function TopicDetail() {
                     <div className="p-4 rounded-lg bg-muted/30 border border-border max-h-[50vh] overflow-y-auto">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-base text-foreground whitespace-pre-wrap leading-relaxed flex-1">
-                          {selectedResource.content || selectedResource.description || 'No content available'}
+                          {currentResource.content || currentResource.description || 'No content available'}
                         </p>
-                        {(selectedResource.content || selectedResource.description) && (
+                        {(currentResource.content || currentResource.description) && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleCopyContent(selectedResource.content || selectedResource.description)}
+                            onClick={() => handleCopyContent(currentResource.content || currentResource.description)}
                             className="shrink-0"
                             title="Copy content"
                           >
@@ -865,25 +936,25 @@ export default function TopicDetail() {
                   </div>
                 )}
 
-                {(selectedResource.url || selectedResource.capture?.source) && (
+                {(currentResource.url || currentResource.capture?.source) && (
                   <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/10">
                     <div className="flex items-center gap-2">
                       <ExternalLink className="w-4 h-4 text-primary" />
                       <a
-                        href={selectedResource.url || selectedResource.capture?.source}
+                        href={currentResource.url || currentResource.capture?.source}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline"
                       >
-                        {selectedResource.url || selectedResource.capture?.source}
+                        {currentResource.url || currentResource.capture?.source}
                       </a>
                     </div>
                   </div>
                 )}
 
-                {selectedResource.createdAt && (
+                {currentResource.createdAt && (
                   <div className="mt-4 text-xs text-muted-foreground">
-                    Created {new Date(selectedResource.createdAt).toLocaleString()}
+                    Created {new Date(currentResource.createdAt).toLocaleString()}
                   </div>
                 )}
               </div>
@@ -891,9 +962,17 @@ export default function TopicDetail() {
               <DialogFooter>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setShowResourceDetail(false);
-                    handleDeleteResource(selectedResource.id);
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (confirm('Are you sure you want to delete this resource?')) {
+                      const resourceId = currentResource.id;
+                      setShowResourceDetail(false);
+                      setSelectedResource(null);
+                      setTimeout(() => {
+                        deleteResourceMutation.mutate(resourceId);
+                      }, 100);
+                    }
                   }}
                   className="text-destructive hover:text-destructive mr-auto"
                 >
@@ -902,9 +981,11 @@ export default function TopicDetail() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     setShowResourceDetail(false);
-                    handleOpenEditResource(selectedResource);
+                    handleOpenEditResource(currentResource);
                   }}
                 >
                   <Edit className="w-4 h-4 mr-2" />
@@ -912,13 +993,18 @@ export default function TopicDetail() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setShowResourceDetail(false)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowResourceDetail(false);
+                  }}
                 >
                   Close
                 </Button>
               </DialogFooter>
             </>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

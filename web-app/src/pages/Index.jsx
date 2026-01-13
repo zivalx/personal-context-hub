@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, Copy, ExternalLink, FileText, Link2, Lightbulb, AlignLeft, Quote, ChevronDown, ChevronRight, Trash2, Edit } from "lucide-react";
+import { Bookmark, Copy, ExternalLink, FileText, Link2, Lightbulb, AlignLeft, Quote, ChevronDown, ChevronRight, Trash2, Edit, CheckSquare, Square, Plus } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { TopicCard } from "@/components/cards/TopicCard";
@@ -30,6 +30,7 @@ export default function Index() {
   const [editCapture, setEditCapture] = useState({ title: '', content: '', type: 'text' });
   const [selectedTopicForCapture, setSelectedTopicForCapture] = useState('');
   const [showFullCaptureInAddToTopic, setShowFullCaptureInAddToTopic] = useState(false);
+  const [newTodoItemInModal, setNewTodoItemInModal] = useState('');
 
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -44,6 +45,8 @@ export default function Index() {
   const { data: capturesData, isLoading: capturesLoading } = useQuery({
     queryKey: ['captures'],
     queryFn: () => capturesAPI.getAll({ limit: activeItem === 'Recent' ? 50 : 10 }),
+    refetchOnWindowFocus: true,
+    refetchInterval: 5000, // Refetch every 5 seconds to catch extension updates
   });
 
   // Fetch bookmarks
@@ -162,6 +165,9 @@ export default function Index() {
 
   const handleDeleteCapture = (captureId) => {
     if (confirm('Are you sure you want to delete this capture?')) {
+      // Prevent any modal from opening
+      setShowCaptureDetail(false);
+      setSelectedCapture(null);
       deleteCaptureMutation.mutate(captureId);
     }
   };
@@ -196,6 +202,60 @@ export default function Index() {
     toast.success("Content copied to clipboard!");
   };
 
+  const captureTodoToggleMutation = useMutation({
+    mutationFn: async ({ captureId, itemIndex }) => {
+      const capture = captures.find(c => c.id === captureId) ||
+                      bookmarks.captures?.find(c => c.id === captureId);
+      if (!capture || capture.type !== 'todo') throw new Error('Invalid capture');
+
+      const todoItems = JSON.parse(capture.content);
+      todoItems[itemIndex].completed = !todoItems[itemIndex].completed;
+
+      return capturesAPI.update(captureId, {
+        type: capture.type,
+        title: capture.title,
+        content: JSON.stringify(todoItems),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['captures']);
+      queryClient.invalidateQueries(['bookmarks']);
+    },
+    onError: () => {
+      toast.error("Failed to update todo item");
+    }
+  });
+
+  const handleCaptureTodoToggle = (captureId, itemIndex) => {
+    captureTodoToggleMutation.mutate({ captureId, itemIndex });
+  };
+
+  const handleAddCaptureTodoItemInModal = async (captureId) => {
+    if (!newTodoItemInModal.trim()) return;
+
+    const capture = captures.find(c => c.id === captureId) ||
+                    bookmarks.captures?.find(c => c.id === captureId);
+    if (!capture || capture.type !== 'todo') return;
+
+    try {
+      const todoItems = JSON.parse(capture.content || '[]');
+      todoItems.push({ text: newTodoItemInModal.trim(), completed: false });
+
+      await capturesAPI.update(captureId, {
+        type: capture.type,
+        title: capture.title,
+        content: JSON.stringify(todoItems),
+      });
+
+      await queryClient.refetchQueries(['captures']);
+      await queryClient.refetchQueries(['bookmarks']);
+      setNewTodoItemInModal('');
+      toast.success("Todo item added!");
+    } catch (error) {
+      toast.error("Failed to add todo item");
+    }
+  };
+
   const getCaptureIcon = (type) => {
     switch (type) {
       case "link": return Link2;
@@ -203,6 +263,7 @@ export default function Index() {
       case "idea": return Lightbulb;
       case "text": return AlignLeft;
       case "quote": return Quote;
+      case "todo": return CheckSquare;
       default: return FileText;
     }
   };
@@ -638,67 +699,149 @@ export default function Index() {
 
       {/* Capture Detail Modal */}
       <Dialog open={showCaptureDetail} onOpenChange={setShowCaptureDetail}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          {selectedCapture && (
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto" key={selectedCapture?.id}>
+          {(() => {
+            // Get fresh capture data from queries
+            const currentCapture = selectedCapture && (
+              captures.find(c => c.id === selectedCapture.id) ||
+              bookmarks.captures?.find(c => c.id === selectedCapture.id) ||
+              selectedCapture
+            );
+
+            if (!currentCapture) return null;
+
+            return (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   {(() => {
-                    const Icon = getCaptureIcon(selectedCapture.type);
+                    const Icon = getCaptureIcon(currentCapture.type);
                     return <Icon className="w-5 h-5" />;
                   })()}
-                  {selectedCapture.title || 'Untitled Capture'}
+                  <span>{currentCapture.title || 'Untitled Capture'}</span>
+                  {currentCapture.type === 'todo' && (() => {
+                    try {
+                      const todoItems = JSON.parse(currentCapture.content || '[]');
+                      const completed = todoItems.filter(item => item.completed).length;
+                      return (
+                        <span className="text-sm font-normal text-muted-foreground">
+                          ({completed}/{todoItems.length})
+                        </span>
+                      );
+                    } catch {
+                      return null;
+                    }
+                  })()}
                 </DialogTitle>
-                {selectedCapture.type && (
+                {currentCapture.type && (
                   <DialogDescription>
-                    {selectedCapture.type.charAt(0).toUpperCase() + selectedCapture.type.slice(1)}
-                    {selectedCapture.createdAt && ` • ${new Date(selectedCapture.createdAt).toLocaleString()}`}
+                    {currentCapture.type.charAt(0).toUpperCase() + currentCapture.type.slice(1)}
+                    {currentCapture.createdAt && ` • ${new Date(currentCapture.createdAt).toLocaleString()}`}
                   </DialogDescription>
                 )}
               </DialogHeader>
 
               <div className="py-4">
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <div className="p-4 rounded-lg bg-muted/30 border border-border max-h-[50vh] overflow-y-auto">
-                    <div className="flex items-start justify-between gap-2 mb-3">
-                      <p className="text-base text-foreground whitespace-pre-wrap leading-relaxed flex-1">
-                        {selectedCapture.content || 'No content'}
-                      </p>
-                      {selectedCapture.content && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleCopyContent(selectedCapture.content)}
-                          className="shrink-0"
-                          title="Copy content"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </Button>
-                      )}
+                {currentCapture.type === 'todo' ? (
+                  (() => {
+                    let todoItems = [];
+                    try {
+                      todoItems = JSON.parse(currentCapture.content || '[]');
+                    } catch {
+                      todoItems = [];
+                    }
+                    return (
+                      <div className="space-y-3" key={currentCapture.content}>
+                        <div className="space-y-2">
+                          {todoItems.map((item, index) => (
+                            <div key={index} className="flex items-start gap-3 py-1 group">
+                              <button
+                                onClick={() => handleCaptureTodoToggle(currentCapture.id, index)}
+                                className="mt-0.5 shrink-0"
+                              >
+                                {item.completed ? (
+                                  <CheckSquare className="w-5 h-5 text-primary" />
+                                ) : (
+                                  <Square className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />
+                                )}
+                              </button>
+                              <span className={cn(
+                                "text-base flex-1",
+                                item.completed ? "text-muted-foreground line-through" : "text-foreground"
+                              )}>
+                                {item.text}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2 pt-2 border-t border-border">
+                          <Input
+                            placeholder="Add new item..."
+                            value={newTodoItemInModal}
+                            onChange={(e) => setNewTodoItemInModal(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddCaptureTodoItemInModal(currentCapture.id);
+                              }
+                            }}
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleAddCaptureTodoItemInModal(currentCapture.id)}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <div className="p-4 rounded-lg bg-muted/30 border border-border max-h-[50vh] overflow-y-auto">
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <p className="text-base text-foreground whitespace-pre-wrap leading-relaxed flex-1">
+                          {currentCapture.content || 'No content'}
+                        </p>
+                        {currentCapture.content && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCopyContent(currentCapture.content)}
+                            className="shrink-0"
+                            title="Copy content"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {selectedCapture.source && (
+                {currentCapture.source && (
                   <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/10">
                     <div className="flex items-center gap-2">
                       <ExternalLink className="w-4 h-4 text-primary" />
                       <a
-                        href={selectedCapture.source}
+                        href={currentCapture.source}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline"
                       >
-                        {selectedCapture.source}
+                        {currentCapture.source}
                       </a>
                     </div>
                   </div>
                 )}
 
-                {selectedCapture.summary && (
+                {currentCapture.summary && (
                   <div className="mt-4 p-3 rounded-lg bg-muted/30 border border-border">
                     <p className="text-xs font-medium text-muted-foreground mb-2">AI Summary</p>
-                    <p className="text-sm text-foreground">{selectedCapture.summary}</p>
+                    <p className="text-sm text-foreground">{currentCapture.summary}</p>
                   </div>
                 )}
               </div>
@@ -706,9 +849,17 @@ export default function Index() {
               <DialogFooter>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setShowCaptureDetail(false);
-                    handleDeleteCapture(selectedCapture.id);
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (confirm('Are you sure you want to delete this capture?')) {
+                      const captureId = currentCapture.id;
+                      setShowCaptureDetail(false);
+                      setSelectedCapture(null);
+                      setTimeout(() => {
+                        deleteCaptureMutation.mutate(captureId);
+                      }, 100);
+                    }
                   }}
                   className="text-destructive hover:text-destructive mr-auto"
                 >
@@ -717,9 +868,11 @@ export default function Index() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     setShowCaptureDetail(false);
-                    handleEditCapture(selectedCapture);
+                    handleEditCapture(currentCapture);
                   }}
                 >
                   <Edit className="w-4 h-4 mr-2" />
@@ -727,13 +880,18 @@ export default function Index() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setShowCaptureDetail(false)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowCaptureDetail(false);
+                  }}
                 >
                   Close
                 </Button>
               </DialogFooter>
             </>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

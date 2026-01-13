@@ -1,4 +1,4 @@
-import { Link2, FileText, Lightbulb, ExternalLink, Sparkles, Quote, AlignLeft, MoreHorizontal, Trash2, Edit, FolderPlus, Bookmark } from "lucide-react";
+import { Link2, FileText, Lightbulb, ExternalLink, Sparkles, Quote, AlignLeft, MoreHorizontal, Trash2, Edit, FolderPlus, Bookmark, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -35,6 +35,7 @@ const typeIcons: Record<string, typeof Link2> = {
   idea: Lightbulb,
   text: AlignLeft,
   quote: Quote,
+  todo: CheckSquare,
 };
 
 const typeLabels: Record<string, string> = {
@@ -43,6 +44,7 @@ const typeLabels: Record<string, string> = {
   idea: "Idea",
   text: "Text",
   quote: "Quote",
+  todo: "Todo",
 };
 
 export function CaptureCard({
@@ -64,6 +66,20 @@ export function CaptureCard({
   onClick
 }: CaptureCardProps) {
   const Icon = typeIcons[type] || FileText;
+
+  // For todo type, show count instead of raw JSON
+  const displayContent = (() => {
+    if (type === 'todo') {
+      try {
+        const todoItems = JSON.parse(content || '[]');
+        const completed = todoItems.filter((item: any) => item.completed).length;
+        return `${completed}/${todoItems.length} completed`;
+      } catch {
+        return content;
+      }
+    }
+    return content;
+  })();
 
   const handleOpenSource = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -151,7 +167,11 @@ export function CaptureCard({
                   {onDelete && (
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
-                      onClick={onDelete}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setTimeout(() => onDelete(), 0);
+                      }}
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete
@@ -163,7 +183,7 @@ export function CaptureCard({
           </div>
 
           <p className="text-xs text-muted-foreground line-clamp-1 mb-2">
-            {content}
+            {displayContent}
           </p>
 
           {/* AI Summary */}

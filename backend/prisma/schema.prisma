@@ -32,6 +32,7 @@ model Topic {
   description String?
   color       String?  @default("#3B82F6") // Hex color for UI display
   icon        String?  // Icon name or emoji
+  bookmarked  Boolean  @default(false) // User bookmark flag
   userId      String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -42,6 +43,7 @@ model Topic {
 
   @@map("topics")
   @@index([userId])
+  @@index([bookmarked])
 }
 
 // Capture model - content saved from extension or web app
@@ -55,6 +57,7 @@ model Capture {
   tags        String[]  @default([]) // Array of tag strings
   metadata    Json?     // Flexible JSON for additional data
   embedding   String?   // Vector embedding for semantic search (stored as text)
+  bookmarked  Boolean   @default(false) // User bookmark flag
   userId      String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -66,6 +69,7 @@ model Capture {
   @@map("captures")
   @@index([userId])
   @@index([type])
+  @@index([bookmarked])
 }
 
 // Resource model - items within topics, can link to captures
@@ -75,6 +79,7 @@ model Resource {
   description String?
   type        String   // "capture", "note", "external_link"
   order       Int      @default(0) // For custom ordering within a topic
+  bookmarked  Boolean  @default(false) // User bookmark flag
 
   // Optional link to a capture
   captureId   String?
@@ -97,4 +102,5 @@ model Resource {
   @@index([topicId])
   @@index([userId])
   @@index([captureId])
+  @@index([bookmarked])
 }

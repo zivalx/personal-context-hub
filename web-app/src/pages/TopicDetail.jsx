@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, MoreHorizontal, Trash2, Link2, Lightbulb, StickyNote, ExternalLink, FileText, Edit, Mic, MicOff } from "lucide-react";
+import { ArrowLeft, Plus, MoreHorizontal, Trash2, Link2, Lightbulb, StickyNote, ExternalLink, FileText, Edit, Mic, MicOff, ChevronDown, ChevronRight, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,11 +17,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { topicsAPI, resourcesAPI } from "@/api/client";
+import { topicsAPI, resourcesAPI, bookmarksAPI } from "@/api/client";
 import { toast } from "sonner";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 
-function CaptureItem({ resource, onDelete, onEdit }) {
+function CaptureItem({ resource, onDelete, onEdit, onBookmarkToggle }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const getIcon = () => {
     switch (resource.type) {
       case "external_link": return <Link2 className="w-4 h-4" />;
@@ -50,7 +52,16 @@ function CaptureItem({ resource, onDelete, onEdit }) {
     }
   })() : null;
 
-  const handleClick = () => {
+  const hasExpandableContent = resource.content && resource.content.length > 100;
+
+  const handleCardClick = () => {
+    if (hasExpandableContent || resource.type === 'note') {
+      setIsExpanded(!isExpanded);
+    }
+  };
+
+  const handleLinkClick = (e) => {
+    e.stopPropagation();
     if (sourceUrl) {
       window.open(sourceUrl, '_blank', 'noopener,noreferrer');
     }
@@ -60,26 +71,46 @@ function CaptureItem({ resource, onDelete, onEdit }) {
     <div
       className={cn(
         "glass-card-hover p-4 group",
-        sourceUrl && "cursor-pointer"
+        (hasExpandableContent || resource.type === 'note') && "cursor-pointer"
       )}
-      onClick={handleClick}
+      onClick={handleCardClick}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3 flex-1">
-          <div className={cn("p-2 rounded-lg", getTypeColor())}>
-            {getIcon()}
+          <div className="flex items-center gap-2">
+            {(hasExpandableContent || resource.type === 'note') && (
+              <button className="text-muted-foreground hover:text-foreground transition-colors">
+                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </button>
+            )}
+            <div className={cn("p-2 rounded-lg", getTypeColor())}>
+              {getIcon()}
+            </div>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h4 className="font-medium text-foreground truncate">{resource.title}</h4>
               {displaySource && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <button
+                  onClick={handleLinkClick}
+                  className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+                >
                   <ExternalLink className="w-3 h-3" />
                   {displaySource}
-                </span>
+                </button>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{displayContent}</p>
+
+            {!isExpanded && (
+              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{displayContent}</p>
+            )}
+
+            {isExpanded && resource.content && (
+              <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
+                <p className="text-sm text-foreground whitespace-pre-wrap">{resource.content}</p>
+              </div>
+            )}
+
             {resource.createdAt && (
               <span className="text-xs text-muted-foreground mt-2 block">
                 {new Date(resource.createdAt).toLocaleDateString()}
@@ -87,30 +118,45 @@ function CaptureItem({ resource, onDelete, onEdit }) {
             )}
           </div>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded ml-2"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(resource); }}>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={(e) => { e.stopPropagation(); onDelete(resource.id); }}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => { e.stopPropagation(); onBookmarkToggle?.(resource.id); }}
+            className={cn(
+              "p-1 hover:bg-muted rounded transition-opacity",
+              resource.bookmarked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            )}
+            title={resource.bookmarked ? "Remove bookmark" : "Add bookmark"}
+          >
+            <Bookmark className={cn(
+              "w-4 h-4",
+              resource.bookmarked ? "fill-primary text-primary" : "text-muted-foreground"
+            )} />
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(resource); }}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={(e) => { e.stopPropagation(); onDelete(resource.id); }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   );
@@ -246,6 +292,17 @@ export default function TopicDetail() {
     },
     onError: (error) => {
       toast.error(error.message || "Failed to delete topic");
+    },
+  });
+
+  // Bookmark resource mutation
+  const bookmarkResourceMutation = useMutation({
+    mutationFn: bookmarksAPI.toggleResource,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['topic', id]);
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to toggle bookmark");
     },
   });
 
@@ -443,7 +500,7 @@ export default function TopicDetail() {
                 className="opacity-0 animate-fade-up"
                 style={{ animationDelay: `${index * 0.05}s`, animationFillMode: 'forwards' }}
               >
-                <CaptureItem resource={resource} onDelete={handleDeleteResource} onEdit={handleOpenEditResource} />
+                <CaptureItem resource={resource} onDelete={handleDeleteResource} onEdit={handleOpenEditResource} onBookmarkToggle={(resourceId) => bookmarkResourceMutation.mutate(resourceId)} />
               </div>
             ))}
           </div>

@@ -44,7 +44,7 @@ router.post(
       .isIn(['text', 'link', 'note', 'quote'])
       .withMessage('Type must be one of: text, link, note, quote'),
     body('title').optional().trim(),
-    body('content').trim().notEmpty().withMessage('Content is required'),
+    body('content').optional().trim(),
     body('source').optional().trim(),
     body('tags').optional().isArray().withMessage('Tags must be an array'),
     body('metadata').optional().isObject().withMessage('Metadata must be an object'),

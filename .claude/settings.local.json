@@ -5,7 +5,9 @@
       "Bash(npm install)",
       "Bash(npm install:*)",
       "Bash(node generate-icons.js:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(npx prisma:*)"
     ],
     "deny": [],
     "ask": []

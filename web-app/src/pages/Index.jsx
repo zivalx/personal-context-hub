@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { topicsAPI, capturesAPI, resourcesAPI } from "@/api/client";
+import { topicsAPI, capturesAPI, resourcesAPI, bookmarksAPI } from "@/api/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -41,6 +41,13 @@ export default function Index() {
   const { data: capturesData, isLoading: capturesLoading } = useQuery({
     queryKey: ['captures'],
     queryFn: () => capturesAPI.getAll({ limit: activeItem === 'Recent' ? 50 : 10 }),
+  });
+
+  // Fetch bookmarks
+  const { data: bookmarksData, isLoading: bookmarksLoading } = useQuery({
+    queryKey: ['bookmarks'],
+    queryFn: bookmarksAPI.getAll,
+    enabled: activeItem === 'Bookmarks',
   });
 
   // Create topic mutation
@@ -102,6 +109,23 @@ export default function Index() {
     },
   });
 
+  // Bookmark mutations
+  const bookmarkTopicMutation = useMutation({
+    mutationFn: bookmarksAPI.toggleTopic,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['topics']);
+      queryClient.invalidateQueries(['bookmarks']);
+    },
+  });
+
+  const bookmarkCaptureMutation = useMutation({
+    mutationFn: bookmarksAPI.toggleCapture,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['captures']);
+      queryClient.invalidateQueries(['bookmarks']);
+    },
+  });
+
   const handleCreateTopic = (e) => {
     e.preventDefault();
     if (!newTopic.title.trim()) {
@@ -160,6 +184,7 @@ export default function Index() {
 
   const topics = topicsData?.data?.topics || [];
   const captures = capturesData?.data?.captures || [];
+  const bookmarks = bookmarksData?.data || { topics: [], captures: [], resources: [], totalCount: 0 };
   const totalResources = topics.reduce((sum, topic) => sum + (topic._count?.resources || 0), 0);
 
   // Get first name only
@@ -196,7 +221,7 @@ export default function Index() {
           {activeItem === 'All Items' && (
             <section className="mb-8 opacity-0 animate-fade-up" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                <h2 className="text-[15px] font-medium text-muted-foreground uppercase tracking-wider">
                   Your Topics
                 </h2>
               </div>
@@ -221,6 +246,8 @@ export default function Index() {
                       color={topic.color || 'bg-violet-500'}
                       itemCount={topic._count?.resources || 0}
                       lastUpdated={new Date(topic.updatedAt).toLocaleDateString()}
+                      bookmarked={topic.bookmarked}
+                      onBookmarkToggle={(topicId) => bookmarkTopicMutation.mutate(topicId)}
                       className="opacity-0 animate-fade-up"
                       style={{ animationDelay: `${0.3 + index * 0.1}s`, animationFillMode: 'forwards' }}
                     />
@@ -233,17 +260,95 @@ export default function Index() {
           {/* Recent Captures / Bookmarks */}
           <section className="opacity-0 animate-fade-up" style={{ animationDelay: activeItem === 'All Items' ? '0.5s' : '0.2s', animationFillMode: 'forwards' }}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              <h2 className="text-[15px] font-medium text-muted-foreground uppercase tracking-wider">
                 {activeItem === 'Recent' ? 'Recent Captures' : activeItem === 'Bookmarks' ? 'Bookmarked Items' : 'Recent Captures'}
               </h2>
             </div>
 
             {activeItem === 'Bookmarks' ? (
-              <div className="text-center py-12">
-                <Bookmark className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                <p className="text-muted-foreground mb-2">Bookmarks feature coming soon!</p>
-                <p className="text-sm text-muted-foreground">Mark your favorite items to access them quickly</p>
-              </div>
+              bookmarksLoading ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Loading bookmarks...</p>
+                </div>
+              ) : bookmarks.totalCount === 0 ? (
+                <div className="text-center py-12">
+                  <Bookmark className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                  <p className="text-muted-foreground mb-2">No bookmarks yet</p>
+                  <p className="text-sm text-muted-foreground">Click the bookmark icon on any item to save it here</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Bookmarked Topics */}
+                  {bookmarks.topics.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Topics</h3>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        {bookmarks.topics.map((topic) => (
+                          <TopicCard
+                            key={topic.id}
+                            id={topic.id}
+                            name={topic.title}
+                            description={topic.description}
+                            color={topic.color || 'bg-violet-500'}
+                            itemCount={topic._count?.resources || 0}
+                            lastUpdated={new Date(topic.updatedAt).toLocaleDateString()}
+                            bookmarked={true}
+                            onBookmarkToggle={(topicId) => bookmarkTopicMutation.mutate(topicId)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bookmarked Captures */}
+                  {bookmarks.captures.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Captures</h3>
+                      <div className="space-y-3">
+                        {bookmarks.captures.map((capture) => (
+                          <CaptureCard
+                            key={capture.id}
+                            id={capture.id}
+                            type={capture.type}
+                            title={capture.title || 'Untitled'}
+                            content={capture.content}
+                            source={capture.source}
+                            timestamp={new Date(capture.createdAt).toLocaleDateString()}
+                            bookmarked={true}
+                            onBookmarkToggle={(captureId) => bookmarkCaptureMutation.mutate(captureId)}
+                            onEdit={() => handleEditCapture(capture)}
+                            onDelete={() => handleDeleteCapture(capture.id)}
+                            onAddToTopic={() => handleOpenAddToTopic(capture)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bookmarked Resources */}
+                  {bookmarks.resources.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Resources</h3>
+                      <div className="space-y-2 text-sm text-muted-foreground">
+                        {bookmarks.resources.map((resource) => (
+                          <div key={resource.id} className="glass-card p-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-foreground">{resource.title}</p>
+                                {resource.topic && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Topic: {resource.topic.title}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
             ) : capturesLoading ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">Loading captures...</p>
@@ -258,11 +363,14 @@ export default function Index() {
                 {captures.map((capture, index) => (
                   <CaptureCard
                     key={capture.id}
+                    id={capture.id}
                     type={capture.type}
                     title={capture.title || 'Untitled'}
                     content={capture.content}
                     source={capture.source}
                     timestamp={new Date(capture.createdAt).toLocaleDateString()}
+                    bookmarked={capture.bookmarked}
+                    onBookmarkToggle={(captureId) => bookmarkCaptureMutation.mutate(captureId)}
                     className="opacity-0 animate-fade-up"
                     style={{ animationDelay: `${(activeItem === 'All Items' ? 0.6 : 0.3) + index * 0.05}s`, animationFillMode: 'forwards' }}
                     onEdit={() => handleEditCapture(capture)}

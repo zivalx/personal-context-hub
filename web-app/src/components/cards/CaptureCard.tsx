@@ -1,4 +1,4 @@
-import { Link2, FileText, Lightbulb, ExternalLink, Sparkles, Quote, AlignLeft, MoreHorizontal, Trash2, Edit, FolderPlus } from "lucide-react";
+import { Link2, FileText, Lightbulb, ExternalLink, Sparkles, Quote, AlignLeft, MoreHorizontal, Trash2, Edit, FolderPlus, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -11,6 +11,7 @@ import {
 type CaptureType = "link" | "note" | "idea" | "text" | "quote";
 
 interface CaptureCardProps {
+  id?: string;
   type: string;
   title: string;
   content: string;
@@ -18,6 +19,8 @@ interface CaptureCardProps {
   topic?: { name: string; color: string };
   aiSummary?: string;
   timestamp: string;
+  bookmarked?: boolean;
+  onBookmarkToggle?: (id: string) => void;
   className?: string;
   style?: React.CSSProperties;
   onEdit?: () => void;
@@ -43,6 +46,7 @@ const typeLabels: Record<string, string> = {
 };
 
 export function CaptureCard({
+  id,
   type,
   title,
   content,
@@ -50,6 +54,8 @@ export function CaptureCard({
   topic,
   aiSummary,
   timestamp,
+  bookmarked = false,
+  onBookmarkToggle,
   className,
   style,
   onEdit,
@@ -66,43 +72,65 @@ export function CaptureCard({
     }
   };
 
+  const handleBookmarkClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (id) {
+      onBookmarkToggle?.(id);
+    }
+  };
+
   return (
-    <div className={cn("glass-card p-4 cursor-pointer group hover:border-border transition-colors", className)} style={style} onClick={onClick}>
-      <div className="flex items-start gap-4">
+    <div className={cn("glass-card p-3 group hover:border-border transition-colors", className)} style={style}>
+      <div className="flex items-start gap-3">
         {/* Type Icon */}
-        <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
           <Icon className="w-4 h-4 text-muted-foreground" />
         </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-1">
-            <h4 className="font-medium text-foreground truncate">{title}</h4>
+            <h4 className="font-medium text-sm text-foreground truncate">{title}</h4>
             <div className="flex items-center gap-1">
+              {id && (
+                <button
+                  onClick={handleBookmarkClick}
+                  className={cn(
+                    "p-1 hover:bg-muted rounded transition-opacity",
+                    bookmarked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                  )}
+                  title={bookmarked ? "Remove bookmark" : "Add bookmark"}
+                >
+                  <Bookmark className={cn(
+                    "w-3.5 h-3.5",
+                    bookmarked ? "fill-primary text-primary" : "text-muted-foreground"
+                  )} />
+                </button>
+              )}
               {source && (
                 <button
                   onClick={handleOpenSource}
                   className="p-1 hover:bg-muted rounded transition-opacity opacity-0 group-hover:opacity-100"
                   title="Open source"
                 >
-                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
               )}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuTrigger asChild>
                   <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded">
-                    <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                    <MoreHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {onEdit && (
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+                    <DropdownMenuItem onClick={onEdit}>
                       <Edit className="w-4 h-4 mr-2" />
                       Edit
                     </DropdownMenuItem>
                   )}
                   {onAddToTopic && (
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAddToTopic(); }}>
+                    <DropdownMenuItem onClick={onAddToTopic}>
                       <FolderPlus className="w-4 h-4 mr-2" />
                       Add to Topic
                     </DropdownMenuItem>
@@ -111,7 +139,7 @@ export function CaptureCard({
                   {onDelete && (
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
-                      onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                      onClick={onDelete}
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete
@@ -122,29 +150,24 @@ export function CaptureCard({
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+          <p className="text-xs text-muted-foreground line-clamp-1 mb-2">
             {content}
           </p>
 
           {/* AI Summary */}
           {aiSummary && (
-            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/10 mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground">{aiSummary}</p>
+            <div className="flex items-start gap-2 p-2 rounded-lg bg-primary/5 border border-primary/10 mb-2">
+              <Sparkles className="w-3 h-3 text-primary shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground line-clamp-1">{aiSummary}</p>
             </div>
           )}
 
           {/* Meta */}
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-2 text-xs">
             {topic && (
               <span className="flex items-center gap-1.5">
-                <span className={cn("w-2 h-2 rounded-full", topic.color)} />
+                <span className={cn("w-1.5 h-1.5 rounded-full", topic.color)} />
                 <span className="text-muted-foreground">{topic.name}</span>
-              </span>
-            )}
-            {source && (
-              <span className="text-muted-foreground truncate max-w-[150px]">
-                {source}
               </span>
             )}
             <span className="text-muted-foreground ml-auto">{timestamp}</span>

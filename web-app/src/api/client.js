@@ -192,3 +192,28 @@ export const searchAPI = {
     return fetchWithAuth(`/api/search?${params.toString()}`);
   },
 };
+
+// Bookmarks API
+export const bookmarksAPI = {
+  getAll: async () => {
+    return fetchWithAuth('/api/bookmarks');
+  },
+
+  toggleTopic: async (id) => {
+    return fetchWithAuth(`/api/bookmarks/topic/${id}`, {
+      method: 'PUT',
+    });
+  },
+
+  toggleCapture: async (id) => {
+    return fetchWithAuth(`/api/bookmarks/capture/${id}`, {
+      method: 'PUT',
+    });
+  },
+
+  toggleResource: async (id) => {
+    return fetchWithAuth(`/api/bookmarks/resource/${id}`, {
+      method: 'PUT',
+    });
+  },
+};

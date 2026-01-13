@@ -120,11 +120,19 @@ export const createCapture = async (req, res) => {
 
     const { type, title, content, source, tags, metadata } = req.body;
 
+    // Ensure either content or source is provided
+    if (!content && !source) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either content or source must be provided',
+      });
+    }
+
     const capture = await prisma.capture.create({
       data: {
         type,
         title,
-        content,
+        content: content || '',
         source,
         tags: tags || [],
         metadata,

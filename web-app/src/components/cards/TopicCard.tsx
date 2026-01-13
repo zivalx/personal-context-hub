@@ -1,4 +1,4 @@
-import { FileText, Link2, Lightbulb, MoreHorizontal, Trash2, Share2, Download, Copy } from "lucide-react";
+import { FileText, Link2, Lightbulb, MoreHorizontal, Trash2, Share2, Download, Copy, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import {
@@ -18,6 +18,8 @@ interface TopicCardProps {
   linkCount?: number;
   noteCount?: number;
   lastUpdated: string;
+  bookmarked?: boolean;
+  onBookmarkToggle?: (id: string) => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -31,6 +33,8 @@ export function TopicCard({
   linkCount = 0,
   noteCount = 0,
   lastUpdated,
+  bookmarked = false,
+  onBookmarkToggle,
   className,
   style
 }: TopicCardProps) {
@@ -45,9 +49,14 @@ export function TopicCard({
     console.log(`${action} topic: ${name}`);
   };
 
+  const handleBookmarkClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onBookmarkToggle?.(id);
+  };
+
   return (
-    <div 
-      className={cn("glass-card-hover p-5 cursor-pointer group", className)} 
+    <div
+      className={cn("glass-card-hover p-5 cursor-pointer group", className)}
       style={style}
       onClick={handleCardClick}
     >
@@ -59,12 +68,26 @@ export function TopicCard({
           />
           <h3 className="font-medium text-foreground">{name}</h3>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded">
-              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </DropdownMenuTrigger>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleBookmarkClick}
+            className={cn(
+              "p-1 hover:bg-muted rounded transition-opacity",
+              bookmarked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            )}
+            title={bookmarked ? "Remove bookmark" : "Add bookmark"}
+          >
+            <Bookmark className={cn(
+              "w-4 h-4",
+              bookmarked ? "fill-primary text-primary" : "text-muted-foreground"
+            )} />
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded">
+                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
             <DropdownMenuItem onClick={(e) => handleMenuAction(e as unknown as React.MouseEvent, 'copy')}>
               <Copy className="w-4 h-4 mr-2" />
@@ -87,7 +110,8 @@ export function TopicCard({
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        </div>
       </div>
 
       <p className="text-sm text-muted-foreground mb-4 line-clamp-2">

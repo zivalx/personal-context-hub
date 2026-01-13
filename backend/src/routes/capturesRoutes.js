@@ -41,8 +41,8 @@ router.post(
   '/',
   [
     body('type')
-      .isIn(['text', 'link', 'note', 'quote'])
-      .withMessage('Type must be one of: text, link, note, quote'),
+      .isIn(['text', 'link', 'note', 'quote', 'todo'])
+      .withMessage('Type must be one of: text, link, note, quote, todo'),
     body('title').optional().trim(),
     body('content').optional().trim(),
     body('source').optional().trim(),
@@ -62,8 +62,8 @@ router.put(
   [
     body('type')
       .optional()
-      .isIn(['text', 'link', 'note', 'quote'])
-      .withMessage('Type must be one of: text, link, note, quote'),
+      .isIn(['text', 'link', 'note', 'quote', 'todo'])
+      .withMessage('Type must be one of: text, link, note, quote, todo'),
     body('title').optional().trim(),
     body('content').optional().trim().notEmpty().withMessage('Content cannot be empty'),
     body('source').optional().trim(),

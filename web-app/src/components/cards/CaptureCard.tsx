@@ -79,8 +79,20 @@ export function CaptureCard({
     }
   };
 
+  const handleCardClick = () => {
+    onClick?.();
+  };
+
   return (
-    <div className={cn("glass-card p-3 group hover:border-border transition-colors", className)} style={style}>
+    <div
+      className={cn(
+        "glass-card p-3 group hover:border-border transition-colors",
+        onClick && "cursor-pointer",
+        className
+      )}
+      style={style}
+      onClick={handleCardClick}
+    >
       <div className="flex items-start gap-3">
         {/* Type Icon */}
         <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">

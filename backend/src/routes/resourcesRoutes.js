@@ -32,11 +32,11 @@ router.post(
     body('title').trim().notEmpty().withMessage('Title is required'),
     body('description').optional().trim(),
     body('type')
-      .isIn(['capture', 'note', 'external_link'])
-      .withMessage('Type must be one of: capture, note, external_link'),
+      .isIn(['capture', 'note', 'external_link', 'todo'])
+      .withMessage('Type must be one of: capture, note, external_link, todo'),
     body('captureId').optional().trim(),
     body('content').optional().trim(),
-    body('url').optional().trim().isURL().withMessage('URL must be valid'),
+    body('url').optional().trim(),
     body('order').optional().isInt().withMessage('Order must be an integer'),
   ],
   createResource
@@ -58,7 +58,7 @@ router.put(
       .withMessage('Type must be one of: capture, note, external_link'),
     body('captureId').optional().trim(),
     body('content').optional().trim(),
-    body('url').optional().trim().isURL().withMessage('URL must be valid'),
+    body('url').optional().trim(),
     body('order').optional().isInt().withMessage('Order must be an integer'),
   ],
   updateResource

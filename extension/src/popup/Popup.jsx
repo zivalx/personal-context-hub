@@ -20,12 +20,14 @@ const Popup = () => {
   const [newTopic, setNewTopic] = useState({ title: '', description: '', color: '#8B5CF6' });
 
   // Capture form
-  const [captureType, setCaptureType] = useState('text');
+  const [captureType, setCaptureType] = useState('note');
   const [captureTitle, setCaptureTitle] = useState('');
   const [captureContent, setCaptureContent] = useState('');
   const [captureUrl, setCaptureUrl] = useState('');
   const [captureSuccess, setCaptureSuccess] = useState(false);
   const [captureError, setCaptureError] = useState('');
+  const [todoItems, setTodoItems] = useState([]);
+  const [newTodoItem, setNewTodoItem] = useState('');
 
   // Check authentication on mount
   useEffect(() => {
@@ -74,7 +76,6 @@ const Popup = () => {
         setCaptureTitle(tab.title || '');
         if (tab.url) {
           setCaptureUrl(tab.url);
-          setCaptureType('link');
         }
       }
     });
@@ -137,14 +138,35 @@ const Popup = () => {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       const currentTab = tabs[0];
 
-      // Create capture
-      const captureResponse = await capturesAPI.create({
+      // Prepare capture data
+      const captureData = {
         type: captureType,
         title: captureTitle,
-        content: captureContent,
-        source: currentTab?.url || '',
         tags: [],
-      });
+      };
+
+      // Only add source for link type
+      if (captureType === 'link') {
+        captureData.source = currentTab?.url || captureUrl || '';
+      }
+
+      // Add content based on type
+      if (captureType === 'todo') {
+        if (todoItems.length === 0) {
+          setCaptureError('Please add at least one todo item');
+          return;
+        }
+        captureData.content = JSON.stringify(todoItems);
+      } else {
+        if (!captureContent.trim()) {
+          setCaptureError('Please enter content');
+          return;
+        }
+        captureData.content = captureContent;
+      }
+
+      // Create capture
+      const captureResponse = await capturesAPI.create(captureData);
 
       // If topic is selected, create a resource linked to this capture
       if (selectedTopicId && captureResponse.data?.capture) {
@@ -153,24 +175,34 @@ const Popup = () => {
             resolve(result.token);
           });
         });
+
+        const resourceData = {
+          title: captureTitle || 'Untitled Capture',
+          type: captureType === 'todo' ? 'todo' : 'capture',
+          captureId: captureResponse.data.capture.id,
+        };
+
+        if (captureType === 'todo') {
+          resourceData.content = JSON.stringify(todoItems);
+        } else {
+          resourceData.description = captureContent.substring(0, 100);
+        }
+
         await fetch(`${API_BASE_URL}/api/topics/${selectedTopicId}/resources`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            title: captureTitle || 'Untitled Capture',
-            description: captureContent.substring(0, 100),
-            type: 'capture',
-            captureId: captureResponse.data.capture.id,
-          }),
+          body: JSON.stringify(resourceData),
         });
       }
 
       setCaptureSuccess(true);
       setCaptureTitle('');
       setCaptureContent('');
+      setTodoItems([]);
+      setNewTodoItem('');
       setSelectedTopicId('');
 
       // Reset success message after 2 seconds
@@ -180,6 +212,16 @@ const Popup = () => {
     } catch (err) {
       setCaptureError(err.message || 'Failed to save capture');
     }
+  };
+
+  const handleAddTodoItem = () => {
+    if (!newTodoItem.trim()) return;
+    setTodoItems([...todoItems, { text: newTodoItem.trim(), completed: false }]);
+    setNewTodoItem('');
+  };
+
+  const handleRemoveTodoItem = (index) => {
+    setTodoItems(todoItems.filter((_, i) => i !== index));
   };
 
   if (loading) {
@@ -320,12 +362,15 @@ const Popup = () => {
             id="type"
             className="input"
             value={captureType}
-            onChange={(e) => setCaptureType(e.target.value)}
+            onChange={(e) => {
+              setCaptureType(e.target.value);
+              setTodoItems([]);
+              setNewTodoItem('');
+            }}
           >
-            <option value="text">Text</option>
-            <option value="link">Link</option>
             <option value="note">Note</option>
-            <option value="quote">Quote</option>
+            <option value="link">Link</option>
+            <option value="todo">Todo List</option>
           </select>
         </div>
 
@@ -372,20 +417,68 @@ const Popup = () => {
           />
         </div>
 
-        <div>
-          <label htmlFor="content" className="label">
-            Content
-          </label>
-          <textarea
-            id="content"
-            className="textarea"
-            rows="4"
-            required
-            value={captureContent}
-            onChange={(e) => setCaptureContent(e.target.value)}
-            placeholder="Enter content to capture"
-          />
-        </div>
+        {captureType === 'todo' ? (
+          <div>
+            <label className="label">
+              Todo Items
+            </label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                className="input flex-1"
+                value={newTodoItem}
+                onChange={(e) => setNewTodoItem(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddTodoItem();
+                  }
+                }}
+                placeholder="Add a todo item"
+              />
+              <button
+                type="button"
+                onClick={handleAddTodoItem}
+                className="btn btn-secondary px-3"
+              >
+                +
+              </button>
+            </div>
+            {todoItems.length > 0 && (
+              <div className="space-y-1.5 p-2 rounded border border-border bg-background/50 max-h-32 overflow-y-auto">
+                {todoItems.map((item, index) => (
+                  <div key={index} className="flex items-center gap-2 group">
+                    <svg className="w-3.5 h-3.5 text-muted-foreground shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                    </svg>
+                    <span className="flex-1 text-xs text-foreground">{item.text}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTodoItem(index)}
+                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive text-xs px-1"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label htmlFor="content" className="label">
+              Content
+            </label>
+            <textarea
+              id="content"
+              className="textarea"
+              rows="4"
+              value={captureContent}
+              onChange={(e) => setCaptureContent(e.target.value)}
+              placeholder={captureType === 'link' ? 'Add notes about this link (optional)' : 'Enter content to capture'}
+            />
+          </div>
+        )}
 
         <button type="submit" className="btn btn-primary w-full">
           Save Capture

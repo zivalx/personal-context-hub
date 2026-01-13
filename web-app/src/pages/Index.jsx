@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bookmark } from "lucide-react";
+import { Bookmark, Copy, ExternalLink, FileText, Link2, Lightbulb, AlignLeft, Quote, ChevronDown, ChevronRight, Trash2, Edit } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { TopicCard } from "@/components/cards/TopicCard";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { topicsAPI, capturesAPI, resourcesAPI, bookmarksAPI } from "@/api/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function Index() {
   const [activeItem, setActiveItem] = useState("All Items");
@@ -24,9 +25,11 @@ export default function Index() {
   // Capture modals
   const [showEditCapture, setShowEditCapture] = useState(false);
   const [showAddToTopic, setShowAddToTopic] = useState(false);
+  const [showCaptureDetail, setShowCaptureDetail] = useState(false);
   const [selectedCapture, setSelectedCapture] = useState(null);
   const [editCapture, setEditCapture] = useState({ title: '', content: '', type: 'text' });
   const [selectedTopicForCapture, setSelectedTopicForCapture] = useState('');
+  const [showFullCaptureInAddToTopic, setShowFullCaptureInAddToTopic] = useState(false);
 
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -166,6 +169,7 @@ export default function Index() {
   const handleOpenAddToTopic = (capture) => {
     setSelectedCapture(capture);
     setShowAddToTopic(true);
+    setShowFullCaptureInAddToTopic(false);
   };
 
   const handleAddToTopic = (e) => {
@@ -180,6 +184,27 @@ export default function Index() {
       title: selectedCapture.title || 'Untitled Capture',
       content: selectedCapture.content,
     });
+  };
+
+  const handleOpenCaptureDetail = (capture) => {
+    setSelectedCapture(capture);
+    setShowCaptureDetail(true);
+  };
+
+  const handleCopyContent = (content) => {
+    navigator.clipboard.writeText(content);
+    toast.success("Content copied to clipboard!");
+  };
+
+  const getCaptureIcon = (type) => {
+    switch (type) {
+      case "link": return Link2;
+      case "note": return FileText;
+      case "idea": return Lightbulb;
+      case "text": return AlignLeft;
+      case "quote": return Quote;
+      default: return FileText;
+    }
   };
 
   const topics = topicsData?.data?.topics || [];
@@ -319,6 +344,7 @@ export default function Index() {
                             onEdit={() => handleEditCapture(capture)}
                             onDelete={() => handleDeleteCapture(capture.id)}
                             onAddToTopic={() => handleOpenAddToTopic(capture)}
+                            onClick={() => handleOpenCaptureDetail(capture)}
                           />
                         ))}
                       </div>
@@ -376,6 +402,7 @@ export default function Index() {
                     onEdit={() => handleEditCapture(capture)}
                     onDelete={() => handleDeleteCapture(capture.id)}
                     onAddToTopic={() => handleOpenAddToTopic(capture)}
+                    onClick={() => handleOpenCaptureDetail(capture)}
                   />
                 ))}
               </div>
@@ -558,10 +585,30 @@ export default function Index() {
               </div>
 
               {selectedCapture && (
-                <div className="p-3 rounded-lg bg-muted/30">
-                  <p className="text-xs text-muted-foreground mb-1">Capture:</p>
-                  <p className="text-sm font-medium truncate">{selectedCapture.title || 'Untitled'}</p>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{selectedCapture.content}</p>
+                <div className="rounded-lg bg-muted/30 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowFullCaptureInAddToTopic(!showFullCaptureInAddToTopic)}
+                    className="w-full p-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="text-xs text-muted-foreground mb-1">Capture Preview:</p>
+                      <p className="text-sm font-medium truncate">{selectedCapture.title || 'Untitled'}</p>
+                      {!showFullCaptureInAddToTopic && (
+                        <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{selectedCapture.content}</p>
+                      )}
+                    </div>
+                    {showFullCaptureInAddToTopic ? (
+                      <ChevronDown className="w-4 h-4 ml-2 shrink-0" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 ml-2 shrink-0" />
+                    )}
+                  </button>
+                  {showFullCaptureInAddToTopic && (
+                    <div className="p-3 pt-0 max-h-40 overflow-y-auto">
+                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">{selectedCapture.content}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -586,6 +633,107 @@ export default function Index() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Capture Detail Modal */}
+      <Dialog open={showCaptureDetail} onOpenChange={setShowCaptureDetail}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          {selectedCapture && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {(() => {
+                    const Icon = getCaptureIcon(selectedCapture.type);
+                    return <Icon className="w-5 h-5" />;
+                  })()}
+                  {selectedCapture.title || 'Untitled Capture'}
+                </DialogTitle>
+                {selectedCapture.type && (
+                  <DialogDescription>
+                    {selectedCapture.type.charAt(0).toUpperCase() + selectedCapture.type.slice(1)}
+                    {selectedCapture.createdAt && ` • ${new Date(selectedCapture.createdAt).toLocaleString()}`}
+                  </DialogDescription>
+                )}
+              </DialogHeader>
+
+              <div className="py-4">
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <div className="p-4 rounded-lg bg-muted/30 border border-border max-h-[50vh] overflow-y-auto">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <p className="text-base text-foreground whitespace-pre-wrap leading-relaxed flex-1">
+                        {selectedCapture.content || 'No content'}
+                      </p>
+                      {selectedCapture.content && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCopyContent(selectedCapture.content)}
+                          className="shrink-0"
+                          title="Copy content"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {selectedCapture.source && (
+                  <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                    <div className="flex items-center gap-2">
+                      <ExternalLink className="w-4 h-4 text-primary" />
+                      <a
+                        href={selectedCapture.source}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {selectedCapture.source}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {selectedCapture.summary && (
+                  <div className="mt-4 p-3 rounded-lg bg-muted/30 border border-border">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">AI Summary</p>
+                    <p className="text-sm text-foreground">{selectedCapture.summary}</p>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowCaptureDetail(false);
+                    handleDeleteCapture(selectedCapture.id);
+                  }}
+                  className="text-destructive hover:text-destructive mr-auto"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowCaptureDetail(false);
+                    handleEditCapture(selectedCapture);
+                  }}
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCaptureDetail(false)}
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

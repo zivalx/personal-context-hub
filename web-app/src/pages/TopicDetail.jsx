@@ -78,9 +78,14 @@ function ResourceCard({ resource, onDelete, onEdit, onBookmarkToggle, onTodoTogg
 
   return (
     <div
-      className="glass-card-hover p-4 group flex flex-col h-full cursor-pointer"
+      className="glass-card-hover p-4 group flex flex-col h-full cursor-pointer relative"
       onClick={handleCardClick}
     >
+      {/* Unread indicator */}
+      {resource.unread && (
+        <div className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full" title="Unread" />
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -366,9 +371,20 @@ export default function TopicDetail() {
     });
   };
 
-  const handleOpenResourceDetail = (resource) => {
+  const handleOpenResourceDetail = async (resource) => {
     setSelectedResource(resource);
     setShowResourceDetail(true);
+
+    // Mark as read if unread
+    if (resource.unread) {
+      try {
+        await resourcesAPI.markAsRead(resource.id);
+        queryClient.invalidateQueries(['topic', topicId]);
+        queryClient.invalidateQueries(['bookmarks']);
+      } catch (error) {
+        console.error('Failed to mark resource as read:', error);
+      }
+    }
   };
 
   const handleOpenEditResource = (resource) => {

@@ -10,19 +10,33 @@ datasource db {
 
 // User model for authentication and ownership
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String   // Hashed password
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  password              String?   // Hashed password (optional for OAuth users)
+  name                  String?
+  emailVerified         Boolean   @default(false)
+  emailVerificationToken String?  @unique
+  resetPasswordToken    String?   @unique
+  resetPasswordExpires  DateTime?
+
+  // OAuth fields
+  googleId              String?   @unique
+  profilePicture        String?
+  authProvider          String?   @default("email") // "email" or "google"
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   // Relations
   topics    Topic[]
   captures  Capture[]
   resources Resource[]
+  analyticsEvents AnalyticsEvent[]
 
   @@map("users")
+  @@index([emailVerificationToken])
+  @@index([resetPasswordToken])
+  @@index([googleId])
 }
 
 // Topic model - user-created categories for organizing content
@@ -58,6 +72,7 @@ model Capture {
   metadata    Json?     // Flexible JSON for additional data
   embedding   String?   // Vector embedding for semantic search (stored as text)
   bookmarked  Boolean   @default(false) // User bookmark flag
+  unread      Boolean   @default(true)  // Unread flag - true when first captured
   userId      String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -70,6 +85,7 @@ model Capture {
   @@index([userId])
   @@index([type])
   @@index([bookmarked])
+  @@index([unread])
 }
 
 // Resource model - items within topics, can link to captures
@@ -80,6 +96,7 @@ model Resource {
   type        String   // "capture", "note", "external_link"
   order       Int      @default(0) // For custom ordering within a topic
   bookmarked  Boolean  @default(false) // User bookmark flag
+  unread      Boolean  @default(true)  // Unread flag - true when added to topic
 
   // Optional link to a capture
   captureId   String?
@@ -103,4 +120,48 @@ model Resource {
   @@index([userId])
   @@index([captureId])
   @@index([bookmarked])
+  @@index([unread])
+}
+
+// Analytics Event model - tracks user activity and actions
+model AnalyticsEvent {
+  id          String   @id @default(uuid())
+  userId      String
+  eventType   String   // "capture_created", "topic_created", "search_performed", "login", etc.
+  eventName   String   // Human-readable event name
+  properties  Json?    // Additional event data (e.g., capture type, search query, etc.)
+  source      String?  // "web_app", "extension", "api"
+  sessionId   String?  // Optional session identifier
+  ipAddress   String?  // User IP for security/analytics
+  userAgent   String?  // Browser/device info
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("analytics_events")
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+// User Stats model - aggregated analytics for quick access
+model UserStats {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  totalCaptures         Int      @default(0)
+  totalTopics           Int      @default(0)
+  totalResources        Int      @default(0)
+  totalSearches         Int      @default(0)
+  capturesByType        Json?    // {"text": 5, "link": 10, "note": 3}
+  mostActiveDay         String?  // Day of week with most activity
+  mostActiveHour        Int?     // Hour of day with most activity
+  averageCapturesPerDay Float?   @default(0)
+  lastActiveAt          DateTime @default(now())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("user_stats")
+  @@index([userId])
 }

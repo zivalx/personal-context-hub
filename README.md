@@ -19,7 +19,10 @@ personal-context-hub/
 - PostgreSQL database
 - Prisma ORM
 - JWT authentication
-- OpenAI API integration
+- Google OAuth 2.0 integration
+- Passport.js for authentication strategies
+- Winston logging
+- Rate limiting with express-rate-limit
 
 ### Web App
 - React 18 with Vite
@@ -39,7 +42,8 @@ personal-context-hub/
 
 - Node.js 18+ and npm
 - PostgreSQL 14+
-- OpenAI API key (for AI features)
+- Google Cloud project (for OAuth - optional, see GOOGLE_OAUTH_SETUP.md)
+- SMTP service (for emails - optional, see DEPLOYMENT.md)
 
 ### 1. Install Dependencies
 
@@ -70,10 +74,32 @@ Edit `backend/.env` with your configuration:
 DATABASE_URL="postgresql://username:password@localhost:5432/personal_context_hub?schema=public"
 PORT=3001
 NODE_ENV=development
-JWT_SECRET=your-super-secret-jwt-key-change-this
+JWT_SECRET=generate-with-crypto-randomBytes-64-chars
 JWT_EXPIRES_IN=7d
-OPENAI_API_KEY=your-openai-api-key
 ALLOWED_ORIGINS=http://localhost:5173,chrome-extension://*
+FRONTEND_URL=http://localhost:5173
+
+# Google OAuth (see GOOGLE_OAUTH_SETUP.md)
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+BACKEND_URL=http://localhost:3001
+SESSION_SECRET=generate-with-crypto-randomBytes-32-chars
+
+# Email Service (see DEPLOYMENT.md)
+SMTP_HOST=smtp.sendgrid.net
+SMTP_PORT=587
+SMTP_USER=apikey
+SMTP_PASS=your-sendgrid-api-key
+EMAIL_FROM=noreply@yourapp.com
+```
+
+**Generate secure secrets:**
+```bash
+# JWT_SECRET (64 chars)
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+
+# SESSION_SECRET (32 chars)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 #### Run Database Migrations
@@ -159,9 +185,15 @@ Then reload the extension in Chrome after changes.
 ### Backend API Endpoints
 
 #### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
+- `POST /api/auth/register` - Register new user (email + password)
+- `POST /api/auth/login` - Login user (email + password)
+- `GET /api/auth/google` - Initiate Google OAuth flow
+- `GET /api/auth/google/callback` - Google OAuth callback
 - `GET /api/auth/me` - Get current user profile
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/reset-password` - Reset password with token
+- `POST /api/auth/send-verification` - Send email verification
+- `POST /api/auth/verify-email` - Verify email with token
 
 #### Topics
 - `GET /api/topics` - Get all topics
@@ -255,15 +287,33 @@ npm run prisma:studio    # Open Prisma Studio
 
 5. **Database**: Use connection pooling and SSL in production PostgreSQL.
 
+## Production Deployment
+
+Ready to deploy? See these guides:
+
+- **[QUICKSTART_OAUTH.md](QUICKSTART_OAUTH.md)** - Get Google OAuth running locally in 15 minutes
+- **[GOOGLE_OAUTH_SETUP.md](GOOGLE_OAUTH_SETUP.md)** - Complete Google OAuth setup guide
+- **[DEPLOYMENT_ACTION_PLAN.md](DEPLOYMENT_ACTION_PLAN.md)** - Complete deployment guide with hosting recommendations
+- **[PRODUCTION_READY.md](PRODUCTION_READY.md)** - Production readiness summary
+- **[ERROR_MONITORING.md](backend/ERROR_MONITORING.md)** - Error monitoring setup (Sentry, LogRocket, etc.)
+
+**All features are production-ready:**
+- ✅ Google OAuth & email/password authentication
+- ✅ Rate limiting & security hardening
+- ✅ Email verification & password reset
+- ✅ Request/response logging with Winston
+- ✅ Comprehensive documentation
+
 ## Future Enhancements
 
-- [ ] AI summarization endpoint implementation
+- [ ] AI summarization with OpenAI
 - [ ] Semantic search with vector embeddings
 - [ ] Real-time sync with WebSockets
 - [ ] Export/import functionality
 - [ ] Rich text editing with Tiptap integration
 - [ ] Mobile app (React Native)
 - [ ] Collaborative topics/sharing
+- [ ] GitHub & Microsoft OAuth providers
 
 ## Troubleshooting
 

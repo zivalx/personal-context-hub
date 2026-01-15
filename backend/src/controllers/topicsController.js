@@ -1,5 +1,6 @@
 import { validationResult } from 'express-validator';
 import { prisma } from '../utils/prisma.js';
+import { trackEvent, EventTypes, getRequestMetadata } from '../services/analyticsService.js';
 
 /**
  * Get all topics for the authenticated user
@@ -56,9 +57,10 @@ export const getTopicById = async (req, res) => {
           include: {
             capture: true,
           },
-          orderBy: {
-            order: 'asc',
-          },
+          orderBy: [
+            { unread: 'desc' }, // Unread items first
+            { order: 'asc' },    // Then by custom order
+          ],
         },
       },
     });
@@ -110,6 +112,20 @@ export const createTopic = async (req, res) => {
         icon,
         userId: req.user.id,
       },
+    });
+
+    // Track topic creation event
+    const reqMetadata = getRequestMetadata(req);
+    trackEvent({
+      userId: req.user.id,
+      eventType: EventTypes.TOPIC_CREATED,
+      eventName: 'Topic Created',
+      properties: {
+        hasDescription: !!description,
+        hasColor: !!color,
+        hasIcon: !!icon,
+      },
+      ...reqMetadata,
     });
 
     res.status(201).json({

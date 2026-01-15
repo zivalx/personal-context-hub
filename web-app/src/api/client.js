@@ -149,6 +149,12 @@ export const capturesAPI = {
       method: 'DELETE',
     });
   },
+
+  markAsRead: async (id) => {
+    return fetchWithAuth(`/api/captures/${id}/read`, {
+      method: 'PUT',
+    });
+  },
 };
 
 // Resources API
@@ -183,6 +189,12 @@ export const resourcesAPI = {
       body: JSON.stringify({ resourceOrders }),
     });
   },
+
+  markAsRead: async (id) => {
+    return fetchWithAuth(`/api/resources/${id}/read`, {
+      method: 'PUT',
+    });
+  },
 };
 
 // Search API
@@ -214,6 +226,44 @@ export const bookmarksAPI = {
   toggleResource: async (id) => {
     return fetchWithAuth(`/api/bookmarks/resource/${id}`, {
       method: 'PUT',
+    });
+  },
+};
+
+// Analytics API
+export const analyticsAPI = {
+  /**
+   * Get user analytics overview
+   * @param {number} days - Number of days to fetch (default: 30)
+   */
+  getOverview: async (days = 30) => {
+    return fetchWithAuth(`/api/analytics/overview?days=${days}`);
+  },
+
+  /**
+   * Get event history
+   * @param {object} params - Query parameters (eventType, limit, offset, days)
+   */
+  getEventHistory: async (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return fetchWithAuth(`/api/analytics/events?${queryParams}`);
+  },
+
+  /**
+   * Get user stats summary
+   */
+  getStats: async () => {
+    return fetchWithAuth('/api/analytics/stats');
+  },
+
+  /**
+   * Track an analytics event
+   * @param {object} eventData - Event data (eventType, eventName, properties, source, sessionId)
+   */
+  trackEvent: async (eventData) => {
+    return fetchWithAuth('/api/analytics/events', {
+      method: 'POST',
+      body: JSON.stringify(eventData),
     });
   },
 };

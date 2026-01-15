@@ -7,7 +7,8 @@ import {
   Settings,
   Search,
   Plus,
-  LogOut
+  LogOut,
+  BarChart3
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -15,9 +16,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SearchModal } from "@/components/search/SearchModal";
 
 const navigation = [
-  { name: "All Items", icon: Layers },
-  { name: "Recent", icon: Inbox },
-  { name: "Bookmarks", icon: Bookmark },
+  { name: "All Items", icon: Layers, path: "/" },
+  { name: "Recent", icon: Inbox, path: "/" },
+  { name: "Bookmarks", icon: Bookmark, path: "/" },
+  { name: "Analytics", icon: BarChart3, path: "/analytics" },
 ];
 
 export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], onCreateTopic }) {
@@ -51,7 +53,10 @@ export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], o
           <div className="w-8 h-8 rounded-lg ai-gradient-bg flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-semibold text-lg">Context Hub</span>
+          <div className="flex flex-col">
+            <span className="font-semibold text-lg leading-tight">youtopical</span>
+            <span className="text-xs text-muted-foreground leading-tight">your personal context hub</span>
+          </div>
         </div>
       </div>
 
@@ -78,7 +83,7 @@ export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], o
               key={item.name}
               onClick={() => {
                 onItemSelect?.(item.name);
-                navigate('/');
+                navigate(item.path);
               }}
               className={cn(
                 "nav-item w-full justify-between",

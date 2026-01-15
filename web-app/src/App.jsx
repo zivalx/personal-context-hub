@@ -5,6 +5,9 @@ import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import Index from '@/pages/Index';
 import TopicDetail from '@/pages/TopicDetail';
+import Analytics from '@/pages/Analytics';
+import AuthCallback from '@/pages/AuthCallback';
+import ExtensionCallback from '@/pages/ExtensionCallback';
 
 function App() {
   return (
@@ -14,6 +17,8 @@ function App() {
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/auth/extension-callback" element={<ExtensionCallback />} />
 
           {/* Protected routes */}
           <Route
@@ -29,6 +34,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <TopicDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute>
+                <Analytics />
               </ProtectedRoute>
             }
           />

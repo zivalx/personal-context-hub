@@ -234,6 +234,47 @@ export const deleteResource = async (req, res) => {
 };
 
 /**
+ * Mark resource as read
+ * PUT /api/resources/:id/read
+ */
+export const markResourceAsRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const resource = await prisma.resource.findFirst({
+      where: {
+        id,
+        userId: req.user.id,
+      },
+    });
+
+    if (!resource) {
+      return res.status(404).json({
+        success: false,
+        message: 'Resource not found',
+      });
+    }
+
+    const updatedResource = await prisma.resource.update({
+      where: { id },
+      data: { unread: false },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: { resource: updatedResource },
+    });
+  } catch (error) {
+    console.error('Mark resource as read error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error marking resource as read',
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Reorder resources within a topic
  * PUT /api/topics/:topicId/resources/reorder
  */

@@ -20,6 +20,7 @@ interface CaptureCardProps {
   aiSummary?: string;
   timestamp: string;
   bookmarked?: boolean;
+  unread?: boolean;
   onBookmarkToggle?: (id: string) => void;
   className?: string;
   style?: React.CSSProperties;
@@ -57,6 +58,7 @@ export function CaptureCard({
   aiSummary,
   timestamp,
   bookmarked = false,
+  unread = false,
   onBookmarkToggle,
   className,
   style,
@@ -102,13 +104,18 @@ export function CaptureCard({
   return (
     <div
       className={cn(
-        "glass-card p-3 group hover:border-border transition-colors",
+        "glass-card p-3 group hover:border-border transition-colors relative",
         onClick && "cursor-pointer",
         className
       )}
       style={style}
       onClick={handleCardClick}
     >
+      {/* Unread indicator */}
+      {unread && (
+        <div className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full" title="Unread" />
+      )}
+
       <div className="flex items-start gap-3">
         {/* Type Icon */}
         <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">

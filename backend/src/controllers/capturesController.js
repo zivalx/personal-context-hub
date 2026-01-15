@@ -1,5 +1,6 @@
 import { validationResult } from 'express-validator';
 import { prisma } from '../utils/prisma.js';
+import { trackEvent, EventTypes, getRequestMetadata } from '../services/analyticsService.js';
 
 /**
  * Get all captures for the authenticated user
@@ -140,6 +141,21 @@ export const createCapture = async (req, res) => {
       },
     });
 
+    // Track capture creation event
+    const reqMetadata = getRequestMetadata(req);
+    trackEvent({
+      userId: req.user.id,
+      eventType: EventTypes.CAPTURE_CREATED,
+      eventName: 'Capture Created',
+      properties: {
+        captureType: type,
+        hasTitle: !!title,
+        hasSource: !!source,
+        tagCount: tags ? tags.length : 0,
+      },
+      ...reqMetadata,
+    });
+
     res.status(201).json({
       success: true,
       message: 'Capture created successfully',
@@ -192,6 +208,19 @@ export const updateCapture = async (req, res) => {
       },
     });
 
+    // Track capture update event
+    const reqMetadata = getRequestMetadata(req);
+    trackEvent({
+      userId: req.user.id,
+      eventType: EventTypes.CAPTURE_UPDATED,
+      eventName: 'Capture Updated',
+      properties: {
+        captureType: type || existingCapture.type,
+        fieldsUpdated: Object.keys(req.body).filter(k => req.body[k] !== undefined),
+      },
+      ...reqMetadata,
+    });
+
     res.status(200).json({
       success: true,
       message: 'Capture updated successfully',
@@ -234,6 +263,19 @@ export const deleteCapture = async (req, res) => {
       where: { id },
     });
 
+    // Track capture deletion event
+    const reqMetadata = getRequestMetadata(req);
+    trackEvent({
+      userId: req.user.id,
+      eventType: EventTypes.CAPTURE_DELETED,
+      eventName: 'Capture Deleted',
+      properties: {
+        captureType: existingCapture.type,
+        hadTitle: !!existingCapture.title,
+      },
+      ...reqMetadata,
+    });
+
     res.status(200).json({
       success: true,
       message: 'Capture deleted successfully',
@@ -243,6 +285,47 @@ export const deleteCapture = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting capture',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Mark capture as read
+ * PUT /api/captures/:id/read
+ */
+export const markCaptureAsRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const capture = await prisma.capture.findFirst({
+      where: {
+        id,
+        userId: req.user.id,
+      },
+    });
+
+    if (!capture) {
+      return res.status(404).json({
+        success: false,
+        message: 'Capture not found',
+      });
+    }
+
+    const updatedCapture = await prisma.capture.update({
+      where: { id },
+      data: { unread: false },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: { capture: updatedCapture },
+    });
+  } catch (error) {
+    console.error('Mark capture as read error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error marking capture as read',
       error: error.message,
     });
   }

@@ -8,7 +8,7 @@ interface HeaderProps {
 
 export function Header({ title, subtitle }: HeaderProps) {
   return (
-    <header className="h-16 border-b border-border flex items-center justify-between px-6">
+    <header className="h-16 flex items-center justify-between px-6">
       <div>
         <h1 className="text-xl font-semibold">{title}</h1>
         {subtitle && (

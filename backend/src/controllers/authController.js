@@ -1,7 +1,11 @@
 import { validationResult } from 'express-validator';
+import crypto from 'crypto';
 import { prisma } from '../utils/prisma.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateToken } from '../utils/jwt.js';
+import { sendEmailVerification } from '../utils/emailService.js';
+import logger from '../utils/logger.js';
+import { trackEvent, EventTypes, getRequestMetadata } from '../services/analyticsService.js';
 
 /**
  * Register a new user
@@ -36,23 +40,51 @@ export const register = async (req, res) => {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
+    // Generate email verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
     // Create user
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
+        emailVerificationToken: verificationToken,
       },
       select: {
         id: true,
         email: true,
         name: true,
+        emailVerified: true,
         createdAt: true,
       },
     });
 
+    // Send verification email (optional - doesn't block registration)
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    try {
+      await sendEmailVerification(user.email, verificationToken, frontendUrl);
+    } catch (emailError) {
+      logger.error(`Failed to send verification email to ${email}: ${emailError.message}`);
+      // Continue anyway - user can request resend later
+    }
+
     // Generate JWT token
     const token = generateToken({ userId: user.id, email: user.email });
+
+    // Track registration event
+    const metadata = getRequestMetadata(req);
+    trackEvent({
+      userId: user.id,
+      eventType: EventTypes.USER_REGISTERED,
+      eventName: 'User Registered',
+      properties: {
+        authProvider: 'email',
+        hasName: !!name,
+      },
+      source: 'web_app',
+      ...metadata,
+    });
 
     res.status(201).json({
       success: true,
@@ -63,7 +95,7 @@ export const register = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Register error:', error);
+    logger.error('Register error:', error);
     res.status(500).json({
       success: false,
       message: 'Error registering user',
@@ -102,6 +134,14 @@ export const login = async (req, res) => {
       });
     }
 
+    // Check if user has a password (OAuth users might not)
+    if (!user.password) {
+      return res.status(401).json({
+        success: false,
+        message: 'This account uses Google Sign-In. Please use "Continue with Google" to login.',
+      });
+    }
+
     // Verify password
     const isPasswordValid = await comparePassword(password, user.password);
 
@@ -114,6 +154,19 @@ export const login = async (req, res) => {
 
     // Generate JWT token
     const token = generateToken({ userId: user.id, email: user.email });
+
+    // Track login event
+    const metadata = getRequestMetadata(req);
+    trackEvent({
+      userId: user.id,
+      eventType: EventTypes.USER_LOGGED_IN,
+      eventName: 'User Logged In',
+      properties: {
+        authProvider: user.authProvider || 'email',
+      },
+      source: 'web_app',
+      ...metadata,
+    });
 
     res.status(200).json({
       success: true,
@@ -129,7 +182,7 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error('Login error:', error);
     res.status(500).json({
       success: false,
       message: 'Error logging in',
@@ -152,7 +205,7 @@ export const getCurrentUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get current user error:', error);
+    logger.error('Get current user error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching user profile',

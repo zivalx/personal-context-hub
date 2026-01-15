@@ -5,6 +5,7 @@ import {
   createResource,
   updateResource,
   deleteResource,
+  markResourceAsRead,
   reorderResources,
 } from '../controllers/resourcesController.js';
 import { authenticate } from '../middleware/auth.js';
@@ -70,6 +71,13 @@ router.put(
  * @access  Private
  */
 router.delete('/resources/:id', deleteResource);
+
+/**
+ * @route   PUT /api/resources/:id/read
+ * @desc    Mark a resource as read
+ * @access  Private
+ */
+router.put('/resources/:id/read', markResourceAsRead);
 
 /**
  * @route   PUT /api/topics/:topicId/resources/reorder

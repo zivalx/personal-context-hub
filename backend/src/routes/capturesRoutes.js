@@ -6,6 +6,7 @@ import {
   createCapture,
   updateCapture,
   deleteCapture,
+  markCaptureAsRead,
 } from '../controllers/capturesController.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -80,5 +81,12 @@ router.put(
  * @access  Private
  */
 router.delete('/:id', deleteCapture);
+
+/**
+ * @route   PUT /api/captures/:id/read
+ * @desc    Mark a capture as read
+ * @access  Private
+ */
+router.put('/:id/read', markCaptureAsRead);
 
 export default router;

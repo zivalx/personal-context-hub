@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, MoreHorizontal, Trash2, Link2, Lightbulb, StickyNote, ExternalLink, FileText, Edit, Mic, MicOff, ChevronDown, ChevronRight, Bookmark, CheckSquare, Square, Copy } from "lucide-react";
+import { ArrowLeft, Plus, MoreHorizontal, Trash2, Link2, Lightbulb, StickyNote, ExternalLink, FileText, Edit, Mic, MicOff, ChevronDown, ChevronRight, Bookmark, CheckSquare, Square, Copy, GripVertical, FolderMinus, FolderInput, Layers } from "lucide-react";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy, rectSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sidebar } from "@/components/layout/Sidebar";
 import {
@@ -17,11 +21,45 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { topicsAPI, resourcesAPI, bookmarksAPI } from "@/api/client";
+import { topicsAPI, resourcesAPI, bookmarksAPI, groupsAPI } from "@/api/client";
 import { toast } from "sonner";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 
-function ResourceCard({ resource, onDelete, onEdit, onBookmarkToggle, onTodoToggle, onClick }) {
+function SortableResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToTopic, onAssignToGroup, onBookmarkToggle, onTodoToggle, onClick }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: resource.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <ResourceCard
+        resource={resource}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onRemoveFromTopic={onRemoveFromTopic}
+        onMoveToTopic={onMoveToTopic}
+        onAssignToGroup={onAssignToGroup}
+        onBookmarkToggle={onBookmarkToggle}
+        onTodoToggle={onTodoToggle}
+        onClick={onClick}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
+    </div>
+  );
+}
+
+function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToTopic, onAssignToGroup, onBookmarkToggle, onTodoToggle, onClick, dragHandleProps }) {
 
   const getIcon = () => {
     switch (resource.type) {
@@ -89,6 +127,16 @@ function ResourceCard({ resource, onDelete, onEdit, onBookmarkToggle, onTodoTogg
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2 flex-1 min-w-0">
+          {/* Drag Handle */}
+          {dragHandleProps && (
+            <button
+              {...dragHandleProps}
+              className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="w-4 h-4 text-muted-foreground" />
+            </button>
+          )}
           <div className={cn("p-2 rounded-lg shrink-0", getTypeColor())}>
             {getIcon()}
           </div>
@@ -122,18 +170,36 @@ function ResourceCard({ resource, onDelete, onEdit, onBookmarkToggle, onTodoTogg
                 <Edit className="w-4 h-4 mr-2" />
                 Edit
               </DropdownMenuItem>
+              {onMoveToTopic && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMoveToTopic(resource); }}>
+                  <FolderInput className="w-4 h-4 mr-2" />
+                  Copy/Move to Topic
+                </DropdownMenuItem>
+              )}
+              {onAssignToGroup && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAssignToGroup(resource); }}>
+                  <Layers className="w-4 h-4 mr-2" />
+                  Assign to Group
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
+              {onRemoveFromTopic && resource.captureId && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRemoveFromTopic(resource.id); }}>
+                  <FolderMinus className="w-4 h-4 mr-2" />
+                  Remove from Topic
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
                   // Use setTimeout to prevent modal from opening
-                  setTimeout(() => onDelete(resource.id, true), 0);
+                  setTimeout(() => onDelete(resource.id), 0);
                 }}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
-                Delete
+                {resource.captureId ? 'Delete Entirely' : 'Delete'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -141,18 +207,18 @@ function ResourceCard({ resource, onDelete, onEdit, onBookmarkToggle, onTodoTogg
       </div>
 
       {/* Content Preview */}
-      {resource.type !== 'todo' && (
-        <p className="text-xs text-muted-foreground line-clamp-3 mb-2 flex-1">{displayContent}</p>
-      )}
+      <div className="mb-2 flex-1 min-h-[3rem]">
+        {resource.type !== 'todo' && displayContent && (
+          <p className="text-xs text-muted-foreground line-clamp-2">{displayContent}</p>
+        )}
 
-      {/* Todo Preview */}
-      {resource.type === 'todo' && todoItems.length > 0 && (
-        <div className="mb-2 flex-1">
+        {/* Todo Preview */}
+        {resource.type === 'todo' && todoItems.length > 0 && (
           <p className="text-xs text-muted-foreground">
             {completedCount}/{todoItems.length} completed
           </p>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-auto pt-3 border-t border-border/50">
@@ -193,7 +259,15 @@ export default function TopicDetail() {
   });
   const [newTodoItem, setNewTodoItem] = useState('');
   const [showResourceDetail, setShowResourceDetail] = useState(false);
+  const [showMoveToTopic, setShowMoveToTopic] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showAssignToGroup, setShowAssignToGroup] = useState(false);
   const [selectedResource, setSelectedResource] = useState(null);
+  const [selectedTargetTopicId, setSelectedTargetTopicId] = useState('');
+  const [moveOrCopy, setMoveOrCopy] = useState('copy'); // 'copy' or 'move'
+  const [newGroup, setNewGroup] = useState({ name: '', color: '#8B5CF6' });
+  const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
   const [editTopic, setEditTopic] = useState({
     title: '',
     description: '',
@@ -234,6 +308,15 @@ export default function TopicDetail() {
       }));
     }
   }, [editResourceSpeech.transcript, editResourceSpeech.interimTranscript]);
+
+  // Drag and drop sensors - must be at top level
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before activating drag
+      },
+    })
+  );
 
   // Fetch topic data
   const { data: topicData, isLoading: topicLoading } = useQuery({
@@ -282,10 +365,50 @@ export default function TopicDetail() {
     mutationFn: resourcesAPI.delete,
     onSuccess: () => {
       queryClient.invalidateQueries(['topic', id]);
+      queryClient.invalidateQueries(['captures']); // Refresh captures list
       toast.success("Resource deleted successfully!");
     },
     onError: (error) => {
       toast.error(error.message || "Failed to delete resource");
+    },
+  });
+
+  // Remove resource from topic mutation
+  const removeResourceFromTopicMutation = useMutation({
+    mutationFn: resourcesAPI.removeFromTopic,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['topic', id]);
+      queryClient.invalidateQueries(['captures']); // Refresh captures list
+      toast.success("Resource removed from topic!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to remove resource");
+    },
+  });
+
+  // Copy resource to topic mutation
+  const copyResourceToTopicMutation = useMutation({
+    mutationFn: ({ resourceId, topicId }) => resourcesAPI.copyToTopic(resourceId, topicId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['topic', id]);
+      queryClient.invalidateQueries(['topics']); // Refresh all topics
+      toast.success("Resource copied to new topic!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to copy resource");
+    },
+  });
+
+  // Move resource to topic mutation
+  const moveResourceToTopicMutation = useMutation({
+    mutationFn: ({ resourceId, topicId }) => resourcesAPI.moveToTopic(resourceId, topicId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['topic', id]);
+      queryClient.invalidateQueries(['topics']); // Refresh all topics
+      toast.success("Resource moved to new topic!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to move resource");
     },
   });
 
@@ -313,6 +436,55 @@ export default function TopicDetail() {
     },
     onError: (error) => {
       toast.error(error.message || "Failed to delete topic");
+    },
+  });
+
+  // Reorder resources mutation
+  const reorderResourcesMutation = useMutation({
+    mutationFn: (resourceOrders) => resourcesAPI.reorder(id, resourceOrders),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['topic', id]);
+      toast.success("Resources reordered!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to reorder resources");
+    },
+  });
+
+  // Assign resource to group mutation
+  const assignToGroupMutation = useMutation({
+    mutationFn: ({ resourceId, groupId }) =>
+      resourcesAPI.update(resourceId, { groupId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['topic', id]);
+      toast.success("Resource assigned to group!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to assign to group");
+    },
+  });
+
+  // Create group mutation
+  const createGroupMutation = useMutation({
+    mutationFn: (groupData) => groupsAPI.create(id, groupData),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['topic', id]);
+      toast.success("Group created successfully!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to create group");
+    },
+  });
+
+  // Delete group mutation
+  const deleteGroupMutation = useMutation({
+    mutationFn: groupsAPI.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['topic', id]);
+      toast.success("Group deleted successfully!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to delete group");
     },
   });
 
@@ -379,7 +551,7 @@ export default function TopicDetail() {
     if (resource.unread) {
       try {
         await resourcesAPI.markAsRead(resource.id);
-        queryClient.invalidateQueries(['topic', topicId]);
+        queryClient.invalidateQueries(['topic', id]);
         queryClient.invalidateQueries(['bookmarks']);
       } catch (error) {
         console.error('Failed to mark resource as read:', error);
@@ -421,15 +593,111 @@ export default function TopicDetail() {
     updateResourceMutation.mutate({ resourceId: editResource.id, resourceData });
   };
 
-  const handleDeleteResource = (resourceId, fromDropdown = false) => {
-    if (confirm('Are you sure you want to delete this resource?')) {
-      if (fromDropdown) {
-        // Close any potentially opening modal before deleting
-        setSelectedResource(null);
-        setShowResourceDetail(false);
-      }
+  const handleDeleteResource = (resourceId) => {
+    const resource = resources.find(r => r.id === resourceId);
+    const message = resource?.captureId
+      ? 'Are you sure you want to delete this resource? This will also delete the associated capture from Recent Captures.'
+      : 'Are you sure you want to delete this resource?';
+
+    if (confirm(message)) {
       deleteResourceMutation.mutate(resourceId);
     }
+  };
+
+  const handleRemoveFromTopic = (resourceId) => {
+    if (confirm('Remove this resource from the topic? The capture will remain in Recent Captures.')) {
+      removeResourceFromTopicMutation.mutate(resourceId);
+    }
+  };
+
+  const handleOpenMoveToTopic = (resource) => {
+    setSelectedResource(resource);
+    setSelectedTargetTopicId('');
+    setMoveOrCopy('copy'); // Default to copy
+    setShowMoveToTopic(true);
+  };
+
+  const handleMoveOrCopyToTopic = (e) => {
+    e.preventDefault();
+    if (!selectedTargetTopicId) {
+      toast.error("Please select a topic");
+      return;
+    }
+
+    if (moveOrCopy === 'copy') {
+      copyResourceToTopicMutation.mutate({
+        resourceId: selectedResource.id,
+        topicId: selectedTargetTopicId,
+      });
+    } else {
+      moveResourceToTopicMutation.mutate({
+        resourceId: selectedResource.id,
+        topicId: selectedTargetTopicId,
+      });
+    }
+    setShowMoveToTopic(false);
+  };
+
+  const handleCreateGroup = async (e) => {
+    e.preventDefault();
+
+    if (!newGroup.name.trim()) {
+      toast.error("Please enter a group name");
+      return;
+    }
+
+    try {
+      // Create the group first
+      const result = await createGroupMutation.mutateAsync({
+        name: newGroup.name,
+        color: newGroup.color,
+      });
+
+      // If we have a selected resource, assign it to the new group
+      if (selectedResource && result.data.group) {
+        await assignToGroupMutation.mutateAsync({
+          resourceId: selectedResource.id,
+          groupId: result.data.group.id,
+        });
+      }
+
+      // Reset state
+      setNewGroup({ name: '', color: '#8B5CF6' });
+      setShowCreateGroup(false);
+      setSelectedResource(null);
+    } catch (error) {
+      console.error('Error creating group:', error);
+    }
+  };
+
+  const handleOpenAssignToGroup = (resource) => {
+    setSelectedResource(resource);
+    setSelectedGroupId(resource.groupId || '');
+    setShowAssignToGroup(true);
+  };
+
+  const handleAssignToGroup = (e) => {
+    e.preventDefault();
+
+    if (!selectedGroupId || selectedGroupId === 'none') {
+      // Remove from group
+      assignToGroupMutation.mutate({
+        resourceId: selectedResource.id,
+        groupId: null,
+      });
+    } else if (selectedGroupId === 'new') {
+      // Create new group
+      setShowAssignToGroup(false);
+      setShowCreateGroup(true);
+      return; // Don't close the dialog yet
+    } else {
+      // Assign to existing group
+      assignToGroupMutation.mutate({
+        resourceId: selectedResource.id,
+        groupId: selectedGroupId,
+      });
+    }
+    setShowAssignToGroup(false);
   };
 
   const handleTodoToggle = async (resourceId, itemIndex) => {
@@ -457,6 +725,16 @@ export default function TopicDetail() {
   const handleCopyContent = (content) => {
     navigator.clipboard.writeText(content);
     toast.success("Content copied to clipboard!");
+  };
+
+  const toggleGroupCollapse = (groupId) => {
+    const newCollapsed = new Set(collapsedGroups);
+    if (newCollapsed.has(groupId)) {
+      newCollapsed.delete(groupId);
+    } else {
+      newCollapsed.add(groupId);
+    }
+    setCollapsedGroups(newCollapsed);
   };
 
   const handleAddTodoItemInModal = async (resourceId) => {
@@ -522,6 +800,45 @@ export default function TopicDetail() {
   const topic = topicData?.data?.topic;
   const resources = topic?.resources || [];
   const topicsList = topicsListData?.data?.topics || [];
+  const groups = topic?.groups || [];
+
+  // Group resources
+  const groupedResources = groups.map(group => ({
+    ...group,
+    resources: resources.filter(r => r.groupId === group.id),
+  }));
+
+  // Ungrouped resources
+  const ungroupedResources = resources.filter(r => !r.groupId);
+
+  // Handle drag end - reorder resources
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = resources.findIndex((r) => r.id === active.id);
+    const newIndex = resources.findIndex((r) => r.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    // Create new order array
+    const newResources = [...resources];
+    const [movedResource] = newResources.splice(oldIndex, 1);
+    newResources.splice(newIndex, 0, movedResource);
+
+    // Update order values and send to backend
+    const resourceOrders = newResources.map((resource, index) => ({
+      id: resource.id,
+      order: index,
+    }));
+
+    reorderResourcesMutation.mutate(resourceOrders);
+  };
 
   if (!topic) {
     return (
@@ -574,6 +891,15 @@ export default function TopicDetail() {
                   <Plus className="w-4 h-4" />
                   Add Resource
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setShowCreateGroup(true)}
+                >
+                  <Layers className="w-4 h-4" />
+                  Create Group
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">
@@ -619,23 +945,110 @@ export default function TopicDetail() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {resources.map((resource, index) => (
-                <div
-                  key={resource.id}
-                  className="opacity-0 animate-fade-up"
-                  style={{ animationDelay: `${index * 0.05}s`, animationFillMode: 'forwards' }}
-                >
-                  <ResourceCard
-                    resource={resource}
-                    onDelete={handleDeleteResource}
-                    onEdit={handleOpenEditResource}
-                    onBookmarkToggle={(resourceId) => bookmarkResourceMutation.mutate(resourceId)}
-                    onTodoToggle={handleTodoToggle}
-                    onClick={handleOpenResourceDetail}
-                  />
+            <div className="space-y-6">
+              {/* Grouped Resources */}
+              {groupedResources.map((group) => (
+                <div key={group.id} className="space-y-3">
+                  {/* Group Header */}
+                  <button
+                    onClick={() => toggleGroupCollapse(group.id)}
+                    className="flex items-center gap-2 w-full hover:bg-muted/50 rounded-lg p-2 transition-colors"
+                  >
+                    {collapsedGroups.has(group.id) ? (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: group.color }}
+                    />
+                    <h3 className="font-medium">{group.name}</h3>
+                    <span className="text-muted-foreground text-sm">
+                      ({group.resources.length})
+                    </span>
+                  </button>
+
+                  {/* Group Resources */}
+                  {!collapsedGroups.has(group.id) && (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={group.resources.map((r) => r.id)}
+                        strategy={rectSortingStrategy}
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pl-6">
+                          {group.resources.map((resource, index) => (
+                            <div
+                              key={resource.id}
+                              className="opacity-0 animate-fade-up"
+                              style={{ animationDelay: `${index * 0.05}s`, animationFillMode: 'forwards' }}
+                            >
+                              <SortableResourceCard
+                                resource={resource}
+                                onDelete={handleDeleteResource}
+                                onEdit={handleOpenEditResource}
+                                onRemoveFromTopic={handleRemoveFromTopic}
+                                onMoveToTopic={handleOpenMoveToTopic}
+                                onAssignToGroup={handleOpenAssignToGroup}
+                                onBookmarkToggle={(resourceId) => bookmarkResourceMutation.mutate(resourceId)}
+                                onTodoToggle={handleTodoToggle}
+                                onClick={handleOpenResourceDetail}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
+                  )}
                 </div>
               ))}
+
+              {/* Ungrouped Resources */}
+              {ungroupedResources.length > 0 && (
+                <div className="space-y-3">
+                  {groupedResources.length > 0 && (
+                    <h3 className="text-muted-foreground text-sm uppercase font-medium">
+                      Ungrouped
+                    </h3>
+                  )}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={ungroupedResources.map((r) => r.id)}
+                      strategy={rectSortingStrategy}
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {ungroupedResources.map((resource, index) => (
+                          <div
+                            key={resource.id}
+                            className="opacity-0 animate-fade-up"
+                            style={{ animationDelay: `${index * 0.05}s`, animationFillMode: 'forwards' }}
+                          >
+                            <SortableResourceCard
+                              resource={resource}
+                              onDelete={handleDeleteResource}
+                              onEdit={handleOpenEditResource}
+                              onRemoveFromTopic={handleRemoveFromTopic}
+                              onMoveToTopic={handleOpenMoveToTopic}
+                              onAssignToGroup={handleOpenAssignToGroup}
+                              onBookmarkToggle={(resourceId) => bookmarkResourceMutation.mutate(resourceId)}
+                              onTodoToggle={handleTodoToggle}
+                              onClick={handleOpenResourceDetail}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </div>
+              )}
             </div>
           )}
         </main>
@@ -1228,6 +1641,222 @@ export default function TopicDetail() {
                 className="ai-gradient-bg"
               >
                 {updateResourceMutation.isPending ? 'Updating...' : 'Update Resource'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move/Copy to Topic Modal */}
+      <Dialog open={showMoveToTopic} onOpenChange={setShowMoveToTopic}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Copy or Move to Topic</DialogTitle>
+            <DialogDescription>
+              Select a topic and choose whether to copy or move this resource
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleMoveOrCopyToTopic}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="targetTopic">Target Topic</Label>
+                <Select
+                  value={selectedTargetTopicId}
+                  onValueChange={setSelectedTargetTopicId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a topic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {topicsList.filter(t => t.id !== id).map((topic) => (
+                      <SelectItem key={topic.id} value={topic.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: topic.color }}
+                          />
+                          {topic.title}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-3">
+                <Label>Action</Label>
+                <RadioGroup value={moveOrCopy} onValueChange={setMoveOrCopy}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="copy" id="copy" />
+                    <Label htmlFor="copy" className="font-normal cursor-pointer">
+                      Copy to topic (keep in current topic)
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="move" id="move" />
+                    <Label htmlFor="move" className="font-normal cursor-pointer">
+                      Move to topic (remove from current topic)
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {selectedResource && (
+                <div className="rounded-lg bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Resource:</p>
+                  <p className="text-sm font-medium">{selectedResource.title}</p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowMoveToTopic(false);
+                  setSelectedTargetTopicId('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={moveResourceToTopicMutation.isPending || copyResourceToTopicMutation.isPending}
+                className="ai-gradient-bg"
+              >
+                {moveResourceToTopicMutation.isPending || copyResourceToTopicMutation.isPending
+                  ? (moveOrCopy === 'copy' ? 'Copying...' : 'Moving...')
+                  : (moveOrCopy === 'copy' ? 'Copy to Topic' : 'Move to Topic')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Group Modal */}
+      <Dialog open={showCreateGroup} onOpenChange={setShowCreateGroup}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Group</DialogTitle>
+            <DialogDescription>
+              Create a new group to organize resources within this topic
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateGroup}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="groupName">Group Name</Label>
+                <Input
+                  id="groupName"
+                  placeholder="e.g., Research Links, Ideas"
+                  value={newGroup.name}
+                  onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="groupColor">Color</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="groupColor"
+                    type="color"
+                    value={newGroup.color}
+                    onChange={(e) => setNewGroup({ ...newGroup, color: e.target.value })}
+                    className="w-20 h-10 cursor-pointer"
+                  />
+                  <span className="text-sm text-muted-foreground">{newGroup.color}</span>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowCreateGroup(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="ai-gradient-bg">
+                Create Group
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign to Group Modal */}
+      <Dialog open={showAssignToGroup} onOpenChange={setShowAssignToGroup}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign to Group</DialogTitle>
+            <DialogDescription>
+              Choose which group this resource belongs to
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleAssignToGroup}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="selectGroup">Group</Label>
+                <Select
+                  value={selectedGroupId}
+                  onValueChange={setSelectedGroupId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a group or create new" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">
+                      <span className="text-muted-foreground">No group (ungrouped)</span>
+                    </SelectItem>
+                    {groups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: group.color }}
+                          />
+                          {group.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="new">
+                      <div className="flex items-center gap-2 text-primary">
+                        <Plus className="w-3 h-3" />
+                        Create New Group
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedResource && (
+                <div className="rounded-lg bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Resource:</p>
+                  <p className="text-sm font-medium">{selectedResource.title}</p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAssignToGroup(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={assignToGroupMutation.isPending}
+                className="ai-gradient-bg"
+              >
+                {assignToGroupMutation.isPending ? 'Assigning...' : 'Assign to Group'}
               </Button>
             </DialogFooter>
           </form>

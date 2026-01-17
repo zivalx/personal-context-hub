@@ -183,6 +183,26 @@ export const resourcesAPI = {
     });
   },
 
+  removeFromTopic: async (id) => {
+    return fetchWithAuth(`/api/resources/${id}/remove-from-topic`, {
+      method: 'DELETE',
+    });
+  },
+
+  copyToTopic: async (id, topicId) => {
+    return fetchWithAuth(`/api/resources/${id}/copy-to-topic`, {
+      method: 'POST',
+      body: JSON.stringify({ topicId }),
+    });
+  },
+
+  moveToTopic: async (id, topicId) => {
+    return fetchWithAuth(`/api/resources/${id}/move-to-topic`, {
+      method: 'PUT',
+      body: JSON.stringify({ topicId }),
+    });
+  },
+
   reorder: async (topicId, resourceOrders) => {
     return fetchWithAuth(`/api/topics/${topicId}/resources/reorder`, {
       method: 'PUT',
@@ -226,6 +246,40 @@ export const bookmarksAPI = {
   toggleResource: async (id) => {
     return fetchWithAuth(`/api/bookmarks/resource/${id}`, {
       method: 'PUT',
+    });
+  },
+};
+
+// Groups API
+export const groupsAPI = {
+  getByTopic: async (topicId) => {
+    return fetchWithAuth(`/api/topics/${topicId}/groups`);
+  },
+
+  create: async (topicId, groupData) => {
+    return fetchWithAuth(`/api/topics/${topicId}/groups`, {
+      method: 'POST',
+      body: JSON.stringify(groupData),
+    });
+  },
+
+  update: async (id, groupData) => {
+    return fetchWithAuth(`/api/groups/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(groupData),
+    });
+  },
+
+  delete: async (id) => {
+    return fetchWithAuth(`/api/groups/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  reorder: async (topicId, groupOrders) => {
+    return fetchWithAuth(`/api/topics/${topicId}/groups/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify({ groupOrders }),
     });
   },
 };

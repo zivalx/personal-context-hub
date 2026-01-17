@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 interface HeaderProps {
   title: string;
   subtitle?: string;
+  onCreateTopic?: () => void;
 }
 
-export function Header({ title, subtitle }: HeaderProps) {
+export function Header({ title, subtitle, onCreateTopic }: HeaderProps) {
   return (
     <header className="h-16 flex items-center justify-between px-6">
       <div>
@@ -36,7 +37,10 @@ export function Header({ title, subtitle }: HeaderProps) {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
         </Button>
 
-        <Button className="gap-2 ai-gradient-bg text-primary-foreground hover:opacity-90 transition-opacity">
+        <Button
+          onClick={onCreateTopic}
+          className="gap-2 ai-gradient-bg text-primary-foreground hover:opacity-90 transition-opacity"
+        >
           <Plus className="w-4 h-4" />
           <span>New Topic</span>
         </Button>

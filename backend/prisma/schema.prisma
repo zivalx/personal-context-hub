@@ -31,6 +31,7 @@ model User {
   topics    Topic[]
   captures  Capture[]
   resources Resource[]
+  groups    Group[]
   analyticsEvents AnalyticsEvent[]
 
   @@map("users")
@@ -54,6 +55,7 @@ model Topic {
   // Relations
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   resources Resource[]
+  groups    Group[]
 
   @@map("topics")
   @@index([userId])
@@ -88,6 +90,28 @@ model Capture {
   @@index([unread])
 }
 
+// Group model - organize resources within topics
+model Group {
+  id        String   @id @default(uuid())
+  name      String
+  color     String   @default("#8B5CF6") // Hex color for group display
+  order     Int      @default(0) // Order of groups within topic
+  topicId   String
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  resources Resource[]
+
+  @@map("groups")
+  @@index([topicId])
+  @@index([userId])
+  @@index([topicId, order])
+}
+
 // Resource model - items within topics, can link to captures
 model Resource {
   id          String   @id @default(uuid())
@@ -97,6 +121,11 @@ model Resource {
   order       Int      @default(0) // For custom ordering within a topic
   bookmarked  Boolean  @default(false) // User bookmark flag
   unread      Boolean  @default(true)  // Unread flag - true when added to topic
+
+  // Grouping fields
+  groupId      String?  // Optional reference to Group
+  group        Group?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  orderInGroup Int      @default(0) // Order within the group
 
   // Optional link to a capture
   captureId   String?
@@ -121,6 +150,7 @@ model Resource {
   @@index([captureId])
   @@index([bookmarked])
   @@index([unread])
+  @@index([groupId])
 }
 
 // Analytics Event model - tracks user activity and actions

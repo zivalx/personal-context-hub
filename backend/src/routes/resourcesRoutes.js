@@ -5,6 +5,9 @@ import {
   createResource,
   updateResource,
   deleteResource,
+  removeResourceFromTopic,
+  copyResourceToTopic,
+  moveResourceToTopic,
   markResourceAsRead,
   reorderResources,
 } from '../controllers/resourcesController.js';
@@ -67,10 +70,39 @@ router.put(
 
 /**
  * @route   DELETE /api/resources/:id
- * @desc    Delete a resource
+ * @desc    Delete a resource (and associated capture if exists)
  * @access  Private
  */
 router.delete('/resources/:id', deleteResource);
+
+/**
+ * @route   DELETE /api/resources/:id/remove-from-topic
+ * @desc    Remove a resource from topic (keep the capture)
+ * @access  Private
+ */
+router.delete('/resources/:id/remove-from-topic', removeResourceFromTopic);
+
+/**
+ * @route   POST /api/resources/:id/copy-to-topic
+ * @desc    Copy a resource to another topic
+ * @access  Private
+ */
+router.post(
+  '/resources/:id/copy-to-topic',
+  [body('topicId').trim().notEmpty().withMessage('Topic ID is required')],
+  copyResourceToTopic
+);
+
+/**
+ * @route   PUT /api/resources/:id/move-to-topic
+ * @desc    Move a resource to another topic
+ * @access  Private
+ */
+router.put(
+  '/resources/:id/move-to-topic',
+  [body('topicId').trim().notEmpty().withMessage('Topic ID is required')],
+  moveResourceToTopic
+);
 
 /**
  * @route   PUT /api/resources/:id/read

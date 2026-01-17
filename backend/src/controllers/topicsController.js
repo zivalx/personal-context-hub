@@ -53,13 +53,21 @@ export const getTopicById = async (req, res) => {
         userId: req.user.id,
       },
       include: {
+        groups: {
+          orderBy: {
+            order: 'asc',
+          },
+        },
         resources: {
           include: {
             capture: true,
+            group: true,
           },
           orderBy: [
-            { unread: 'desc' }, // Unread items first
-            { order: 'asc' },    // Then by custom order
+            { unread: 'desc' },                             // Unread items first
+            { orderInGroup: 'asc' },                        // Then by order within group
+            { order: 'asc' },                               // Then by custom order (for ungrouped)
+            { createdAt: 'desc' },                          // Finally by most recent
           ],
         },
       },

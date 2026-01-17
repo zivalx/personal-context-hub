@@ -144,7 +144,7 @@ export const createResource = async (req, res) => {
 export const updateResource = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, type, captureId, content, url, order } = req.body;
+    const { title, description, type, captureId, content, url, order, groupId, orderInGroup } = req.body;
 
     // Check if resource exists and belongs to user
     const existingResource = await prisma.resource.findFirst({
@@ -161,19 +161,41 @@ export const updateResource = async (req, res) => {
       });
     }
 
+    // If groupId is provided, verify it exists and belongs to user
+    if (groupId) {
+      const group = await prisma.group.findFirst({
+        where: {
+          id: groupId,
+          userId: req.user.id,
+        },
+      });
+
+      if (!group) {
+        return res.status(404).json({
+          success: false,
+          message: 'Group not found',
+        });
+      }
+    }
+
+    // Build update data object - only include fields that are provided
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (type !== undefined) updateData.type = type;
+    if (captureId !== undefined) updateData.captureId = captureId;
+    if (content !== undefined) updateData.content = content;
+    if (url !== undefined) updateData.url = url;
+    if (order !== undefined) updateData.order = order;
+    if (groupId !== undefined) updateData.groupId = groupId;
+    if (orderInGroup !== undefined) updateData.orderInGroup = orderInGroup;
+
     const resource = await prisma.resource.update({
       where: { id },
-      data: {
-        title,
-        description,
-        type,
-        captureId,
-        content,
-        url,
-        order,
-      },
+      data: updateData,
       include: {
         capture: true,
+        group: true,
       },
     });
 
@@ -193,10 +215,62 @@ export const updateResource = async (req, res) => {
 };
 
 /**
- * Delete a resource
+ * Delete a resource (and associated capture if it exists)
  * DELETE /api/resources/:id
  */
 export const deleteResource = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if resource exists and belongs to user
+    const existingResource = await prisma.resource.findFirst({
+      where: {
+        id,
+        userId: req.user.id,
+      },
+      include: {
+        capture: true,
+      },
+    });
+
+    if (!existingResource) {
+      return res.status(404).json({
+        success: false,
+        message: 'Resource not found',
+      });
+    }
+
+    // If resource is linked to a capture, delete the capture too
+    if (existingResource.captureId) {
+      await prisma.capture.delete({
+        where: { id: existingResource.captureId },
+      });
+    }
+
+    // Delete the resource (will cascade if capture wasn't deleted above)
+    await prisma.resource.delete({
+      where: { id },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Resource deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete resource error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting resource',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Remove a resource from topic (but keep the capture)
+ * DELETE /api/resources/:id/remove-from-topic
+ */
+export const removeResourceFromTopic = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -215,19 +289,164 @@ export const deleteResource = async (req, res) => {
       });
     }
 
+    // Delete only the resource, not the capture
     await prisma.resource.delete({
       where: { id },
     });
 
     res.status(200).json({
       success: true,
-      message: 'Resource deleted successfully',
+      message: 'Resource removed from topic',
     });
   } catch (error) {
-    console.error('Delete resource error:', error);
+    console.error('Remove resource from topic error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error deleting resource',
+      message: 'Error removing resource from topic',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Copy a resource to another topic
+ * POST /api/resources/:id/copy-to-topic
+ */
+export const copyResourceToTopic = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { topicId } = req.body;
+
+    if (!topicId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topic ID is required',
+      });
+    }
+
+    // Check if resource exists and belongs to user
+    const existingResource = await prisma.resource.findFirst({
+      where: {
+        id,
+        userId: req.user.id,
+      },
+    });
+
+    if (!existingResource) {
+      return res.status(404).json({
+        success: false,
+        message: 'Resource not found',
+      });
+    }
+
+    // Check if target topic exists and belongs to user
+    const targetTopic = await prisma.topic.findFirst({
+      where: {
+        id: topicId,
+        userId: req.user.id,
+      },
+    });
+
+    if (!targetTopic) {
+      return res.status(404).json({
+        success: false,
+        message: 'Target topic not found',
+      });
+    }
+
+    // Create a copy of the resource in the new topic
+    const copiedResource = await prisma.resource.create({
+      data: {
+        title: existingResource.title,
+        description: existingResource.description,
+        type: existingResource.type,
+        captureId: existingResource.captureId, // Link to same capture
+        content: existingResource.content,
+        url: existingResource.url,
+        order: 0, // New resource goes to top
+        topicId,
+        userId: req.user.id,
+        unread: true, // Mark as unread in new topic
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Resource copied to new topic',
+      data: { resource: copiedResource },
+    });
+  } catch (error) {
+    console.error('Copy resource to topic error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error copying resource to topic',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Move a resource to another topic
+ * PUT /api/resources/:id/move-to-topic
+ */
+export const moveResourceToTopic = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { topicId } = req.body;
+
+    if (!topicId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topic ID is required',
+      });
+    }
+
+    // Check if resource exists and belongs to user
+    const existingResource = await prisma.resource.findFirst({
+      where: {
+        id,
+        userId: req.user.id,
+      },
+    });
+
+    if (!existingResource) {
+      return res.status(404).json({
+        success: false,
+        message: 'Resource not found',
+      });
+    }
+
+    // Check if target topic exists and belongs to user
+    const targetTopic = await prisma.topic.findFirst({
+      where: {
+        id: topicId,
+        userId: req.user.id,
+      },
+    });
+
+    if (!targetTopic) {
+      return res.status(404).json({
+        success: false,
+        message: 'Target topic not found',
+      });
+    }
+
+    // Move resource to new topic
+    const updatedResource = await prisma.resource.update({
+      where: { id },
+      data: { topicId },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Resource moved to new topic',
+      data: { resource: updatedResource },
+    });
+  } catch (error) {
+    console.error('Move resource to topic error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error moving resource to topic',
       error: error.message,
     });
   }

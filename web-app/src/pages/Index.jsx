@@ -308,6 +308,7 @@ export default function Index() {
         <Header
           title={`${getGreeting()}${firstName ? `, ${firstName}` : ''}!`}
           subtitle={`${totalResources} resources across ${topics.length} topics`}
+          onCreateTopic={() => setShowCreateTopic(true)}
         />
 
         <main className="flex-1 overflow-y-auto p-6">

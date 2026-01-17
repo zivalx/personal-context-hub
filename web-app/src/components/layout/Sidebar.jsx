@@ -104,7 +104,12 @@ export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], o
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Topics</span>
             {onCreateTopic && (
               <button
-                onClick={onCreateTopic}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Create Topic button clicked', onCreateTopic);
+                  onCreateTopic();
+                }}
                 className="p-1 hover:bg-muted rounded transition-colors"
                 title="Create Topic"
               >

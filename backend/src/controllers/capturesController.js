@@ -29,9 +29,10 @@ export const getAllCaptures = async (req, res) => {
 
     const captures = await prisma.capture.findMany({
       where,
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: [
+        { unread: 'desc' },      // Unread items first
+        { createdAt: 'desc' },   // Then by most recent
+      ],
       take: parseInt(limit),
       skip: parseInt(offset),
     });

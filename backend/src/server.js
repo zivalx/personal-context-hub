@@ -8,6 +8,7 @@ import authRoutes from './routes/authRoutes.js';
 import topicsRoutes from './routes/topicsRoutes.js';
 import capturesRoutes from './routes/capturesRoutes.js';
 import resourcesRoutes from './routes/resourcesRoutes.js';
+import groupsRoutes from './routes/groupsRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import bookmarksRoutes from './routes/bookmarksRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
@@ -84,9 +85,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Apply rate limiting to API routes
-app.use('/api/auth', authLimiter); // Strict rate limiting for auth
-app.use('/api', generalLimiter); // General rate limiting for all other API routes
+// Apply rate limiting ONLY to authentication routes (prevent brute force)
+// Authenticated users can make as many requests as needed
+app.use('/api/auth', authLimiter);
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -96,6 +97,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/bookmarks', bookmarksRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api', resourcesRoutes); // Resources routes include /topics/:topicId/resources
+app.use('/api', groupsRoutes); // Groups routes include /topics/:topicId/groups
 
 // 404 Handler
 app.use(notFoundHandler);

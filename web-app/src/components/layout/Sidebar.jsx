@@ -8,24 +8,34 @@ import {
   Search,
   Plus,
   LogOut,
-  BarChart3
+  BarChart3,
+  Shield
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { SearchModal } from "@/components/search/SearchModal";
 
-const navigation = [
+const baseNavigation = [
   { name: "All Items", icon: Layers, path: "/" },
   { name: "Recent", icon: Inbox, path: "/" },
   { name: "Bookmarks", icon: Bookmark, path: "/" },
   { name: "Analytics", icon: BarChart3, path: "/analytics" },
 ];
 
+const adminNavigation = [
+  { name: "Admin Panel", icon: Shield, path: "/admin", adminOnly: true },
+];
+
 export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], onCreateTopic }) {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const [showSearch, setShowSearch] = useState(false);
+
+  // Combine navigation items, showing admin panel only for admin users
+  const navigation = user?.role === 'admin'
+    ? [...baseNavigation, ...adminNavigation]
+    : baseNavigation;
 
   // Keyboard shortcut for search (Cmd+K or Ctrl+K)
   useEffect(() => {

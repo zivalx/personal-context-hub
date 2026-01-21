@@ -6,6 +6,7 @@ import Register from '@/pages/Register';
 import Index from '@/pages/Index';
 import TopicDetail from '@/pages/TopicDetail';
 import Analytics from '@/pages/Analytics';
+import Admin from '@/pages/Admin';
 import AuthCallback from '@/pages/AuthCallback';
 import ExtensionCallback from '@/pages/ExtensionCallback';
 
@@ -42,6 +43,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Analytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <Admin />
               </ProtectedRoute>
             }
           />

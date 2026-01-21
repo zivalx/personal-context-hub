@@ -24,6 +24,10 @@ model User {
   profilePicture        String?
   authProvider          String?   @default("email") // "email" or "google"
 
+  // Admin/Role fields
+  role                  String    @default("user") // "user" or "admin"
+  lastSeenAt            DateTime  @default(now())
+
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 

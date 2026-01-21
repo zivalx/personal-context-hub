@@ -43,6 +43,10 @@ export const register = async (req, res) => {
     // Generate email verification token
     const verificationToken = crypto.randomBytes(32).toString('hex');
 
+    // Check if this is the first user (make them admin)
+    const userCount = await prisma.user.count();
+    const isFirstUser = userCount === 0;
+
     // Create user
     const user = await prisma.user.create({
       data: {
@@ -50,11 +54,13 @@ export const register = async (req, res) => {
         password: hashedPassword,
         name,
         emailVerificationToken: verificationToken,
+        role: isFirstUser ? 'admin' : 'user',
       },
       select: {
         id: true,
         email: true,
         name: true,
+        role: true,
         emailVerified: true,
         createdAt: true,
       },
@@ -176,6 +182,7 @@ export const login = async (req, res) => {
           id: user.id,
           email: user.email,
           name: user.name,
+          role: user.role,
           createdAt: user.createdAt,
         },
         token,

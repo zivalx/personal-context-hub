@@ -12,6 +12,8 @@ import groupsRoutes from './routes/groupsRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import bookmarksRoutes from './routes/bookmarksRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { generalLimiter, authLimiter } from './middleware/rateLimiter.js';
 import { requestLogger, errorLogger } from './middleware/requestLogger.js';
@@ -96,6 +98,8 @@ app.use('/api/captures', capturesRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/bookmarks', bookmarksRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api', resourcesRoutes); // Resources routes include /topics/:topicId/resources
 app.use('/api', groupsRoutes); // Groups routes include /topics/:topicId/groups
 

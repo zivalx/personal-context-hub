@@ -22,16 +22,25 @@ export const authenticate = async (req, res, next) => {
     // Verify token
     const decoded = verifyToken(token);
 
-    // Check if user still exists
+    // Check if user still exists and update lastSeenAt
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: {
         id: true,
         email: true,
         name: true,
+        role: true,
         createdAt: true,
       },
     });
+
+    // Update lastSeenAt asynchronously (don't block the request)
+    prisma.user
+      .update({
+        where: { id: decoded.userId },
+        data: { lastSeenAt: new Date() },
+      })
+      .catch(() => {}); // Silently fail if update fails
 
     if (!user) {
       return res.status(401).json({

@@ -321,3 +321,41 @@ export const analyticsAPI = {
     });
   },
 };
+
+// Admin API
+export const adminAPI = {
+  /**
+   * Get all users
+   * @param {object} params - Query parameters (page, limit, sortBy, order)
+   */
+  getUsers: async (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return fetchWithAuth(`/api/admin/users?${queryParams}`);
+  },
+
+  /**
+   * Get user detail
+   * @param {string} userId - User ID
+   * @param {number} days - Number of days for activity (default: 30)
+   */
+  getUserDetail: async (userId, days = 30) => {
+    return fetchWithAuth(`/api/admin/users/${userId}?days=${days}`);
+  },
+
+  /**
+   * Get all analytics events
+   * @param {object} params - Query parameters (page, limit, userId, eventType, days, sortBy, order)
+   */
+  getAllEvents: async (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return fetchWithAuth(`/api/admin/events?${queryParams}`);
+  },
+
+  /**
+   * Get platform analytics overview
+   * @param {number} days - Number of days to fetch (default: 30)
+   */
+  getPlatformAnalytics: async (days = 30) => {
+    return fetchWithAuth(`/api/admin/analytics?days=${days}`);
+  },
+};

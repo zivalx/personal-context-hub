@@ -10,8 +10,12 @@ import {
   moveResourceToTopic,
   markResourceAsRead,
   reorderResources,
+  uploadFileResource,
+  downloadFileResource,
+  viewFileResource,
 } from '../controllers/resourcesController.js';
 import { authenticate } from '../middleware/auth.js';
+import { upload, handleUploadError } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -127,5 +131,31 @@ router.put(
   ],
   reorderResources
 );
+
+/**
+ * @route   POST /api/topics/:topicId/resources/upload
+ * @desc    Upload a file resource to a topic
+ * @access  Private
+ */
+router.post(
+  '/topics/:topicId/resources/upload',
+  upload.single('file'),
+  handleUploadError,
+  uploadFileResource
+);
+
+/**
+ * @route   GET /api/resources/:id/download
+ * @desc    Download a file resource
+ * @access  Private
+ */
+router.get('/resources/:id/download', downloadFileResource);
+
+/**
+ * @route   GET /api/resources/:id/view
+ * @desc    View a file resource inline
+ * @access  Private
+ */
+router.get('/resources/:id/view', viewFileResource);
 
 export default router;

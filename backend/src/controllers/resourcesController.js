@@ -1,5 +1,8 @@
 import { validationResult } from 'express-validator';
 import { prisma } from '../utils/prisma.js';
+import fs from 'fs';
+import path from 'path';
+import { uploadConfig } from '../config/upload.js';
 
 /**
  * Get all resources for a specific topic
@@ -238,6 +241,19 @@ export const deleteResource = async (req, res) => {
         success: false,
         message: 'Resource not found',
       });
+    }
+
+    // If resource is a file, delete the physical file
+    if (existingResource.type === 'file' && existingResource.filePath) {
+      const filePath = path.join(uploadConfig.uploadDir, existingResource.filePath);
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (err) {
+          console.error('Error deleting file:', err);
+          // Continue with database deletion even if file deletion fails
+        }
+      }
     }
 
     // If resource is linked to a capture, delete the capture too
@@ -536,6 +552,191 @@ export const reorderResources = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error reordering resources',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Upload a file resource to a topic
+ * POST /api/topics/:topicId/resources/upload
+ */
+export const uploadFileResource = async (req, res) => {
+  try {
+    const { topicId } = req.params;
+
+    // Verify topic exists and belongs to user
+    const topic = await prisma.topic.findFirst({
+      where: {
+        id: topicId,
+        userId: req.user.id,
+      },
+    });
+
+    if (!topic) {
+      // Clean up uploaded file if topic not found
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(404).json({
+        success: false,
+        message: 'Topic not found',
+      });
+    }
+
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded',
+      });
+    }
+
+    const { title, description } = req.body;
+
+    // Create resource with file data
+    const resource = await prisma.resource.create({
+      data: {
+        title: title || req.file.originalname,
+        description: description || '',
+        type: 'file',
+        fileName: req.file.originalname,
+        filePath: req.file.filename, // Store relative filename, not full path
+        fileType: req.file.mimetype,
+        fileSize: req.file.size,
+        topicId,
+        userId: req.user.id,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'File uploaded successfully',
+      data: { resource },
+    });
+  } catch (error) {
+    console.error('Upload file resource error:', error);
+
+    // Clean up file if database operation failed
+    if (req.file) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (err) {
+        console.error('Error deleting file:', err);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading file',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Download a file resource
+ * GET /api/resources/:id/download
+ */
+export const downloadFileResource = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find resource and verify ownership
+    const resource = await prisma.resource.findFirst({
+      where: {
+        id,
+        userId: req.user.id,
+        type: 'file',
+      },
+    });
+
+    if (!resource) {
+      return res.status(404).json({
+        success: false,
+        message: 'File resource not found',
+      });
+    }
+
+    // Check if file exists
+    const filePath = path.join(uploadConfig.uploadDir, resource.filePath);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found on server',
+      });
+    }
+
+    // Set headers for file download
+    res.setHeader('Content-Type', resource.fileType);
+    res.setHeader('Content-Disposition', `attachment; filename="${resource.fileName}"`);
+    res.setHeader('Content-Length', resource.fileSize);
+
+    // Stream file to response
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error('Download file resource error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error downloading file',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * View a file resource (for inline viewing in browser)
+ * GET /api/resources/:id/view
+ */
+export const viewFileResource = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find resource and verify ownership
+    const resource = await prisma.resource.findFirst({
+      where: {
+        id,
+        userId: req.user.id,
+        type: 'file',
+      },
+    });
+
+    if (!resource) {
+      return res.status(404).json({
+        success: false,
+        message: 'File resource not found',
+      });
+    }
+
+    // Check if file exists
+    const filePath = path.join(uploadConfig.uploadDir, resource.filePath);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found on server',
+      });
+    }
+
+    // Set headers for inline viewing
+    res.setHeader('Content-Type', resource.fileType);
+    res.setHeader('Content-Disposition', `inline; filename="${resource.fileName}"`);
+    res.setHeader('Content-Length', resource.fileSize);
+
+    // For text files (CSV, TXT), read content and send as text
+    if (resource.fileType === 'text/csv' || resource.fileType === 'text/plain') {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      res.send(content);
+    } else {
+      // For other files, stream them
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+    }
+  } catch (error) {
+    console.error('View file resource error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error viewing file',
       error: error.message,
     });
   }

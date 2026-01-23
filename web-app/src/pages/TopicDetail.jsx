@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, MoreHorizontal, Trash2, Link2, Lightbulb, StickyNote, ExternalLink, FileText, Edit, Mic, MicOff, ChevronDown, ChevronRight, Bookmark, CheckSquare, Square, Copy, GripVertical, FolderMinus, FolderInput, Layers } from "lucide-react";
+import { ArrowLeft, Plus, MoreHorizontal, Trash2, Link2, Lightbulb, StickyNote, ExternalLink, FileText, Edit, Mic, MicOff, ChevronDown, ChevronRight, Bookmark, CheckSquare, Square, Copy, GripVertical, FolderMinus, FolderInput, Layers, File, FileImage, FileSpreadsheet, Upload, Download } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -67,6 +67,18 @@ function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToT
       case "note": return <StickyNote className="w-4 h-4" />;
       case "capture": return <FileText className="w-4 h-4" />;
       case "todo": return <CheckSquare className="w-4 h-4" />;
+      case "file": {
+        // Show different icons based on file type
+        if (resource.fileType?.startsWith('image/')) {
+          return <FileImage className="w-4 h-4" />;
+        } else if (resource.fileType === 'application/pdf') {
+          return <FileText className="w-4 h-4" />;
+        } else if (resource.fileType === 'text/csv' || resource.fileType?.includes('spreadsheet')) {
+          return <FileSpreadsheet className="w-4 h-4" />;
+        } else {
+          return <File className="w-4 h-4" />;
+        }
+      }
       default: return <Lightbulb className="w-4 h-4" />;
     }
   };
@@ -77,6 +89,7 @@ function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToT
       case "note": return "text-fuchsia-400 bg-fuchsia-500/10";
       case "capture": return "text-violet-400 bg-violet-500/10";
       case "todo": return "text-green-400 bg-green-500/10";
+      case "file": return "text-blue-400 bg-blue-500/10";
       default: return "text-indigo-400 bg-indigo-500/10";
     }
   };
@@ -208,7 +221,7 @@ function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToT
 
       {/* Content Preview */}
       <div className="mb-2 flex-1 min-h-[3rem]">
-        {resource.type !== 'todo' && displayContent && (
+        {resource.type !== 'todo' && resource.type !== 'file' && displayContent && (
           <p className="text-xs text-muted-foreground line-clamp-2">{displayContent}</p>
         )}
 
@@ -218,12 +231,24 @@ function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToT
             {completedCount}/{todoItems.length} completed
           </p>
         )}
+
+        {/* File Preview */}
+        {resource.type === 'file' && (
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground truncate">{resource.fileName}</p>
+            {resource.fileSize && (
+              <p className="text-xs text-muted-foreground">
+                {(resource.fileSize / 1024).toFixed(1)} KB
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-auto pt-3 border-t border-border/50">
         <div className="flex items-center gap-2">
-          {displaySource && (
+          {displaySource && resource.type !== 'file' && (
             <button
               onClick={handleLinkClick}
               className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
@@ -232,6 +257,17 @@ function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToT
               {displaySource}
             </button>
           )}
+          {resource.type === 'file' && (
+            <a
+              href={`http://localhost:3001/api/resources/${resource.id}/download?token=${localStorage.getItem('token')}`}
+              download
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+            >
+              <Download className="w-3 h-3" />
+              Download
+            </a>
+          )}
         </div>
         <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
           Click to view
@@ -239,6 +275,102 @@ function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToT
       </div>
     </div>
   );
+}
+
+// CSV Viewer Component
+function CSVViewer({ resourceId }) {
+  const [csvData, setCsvData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchCSV = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:3001/api/resources/${resourceId}/view?token=${localStorage.getItem('token')}`
+        );
+        const text = await response.text();
+
+        // Parse CSV
+        const lines = text.split('\n').filter(line => line.trim());
+        const data = lines.map(line => {
+          // Simple CSV parsing (handles basic cases)
+          return line.split(',').map(cell => cell.trim());
+        });
+
+        setCsvData(data);
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    fetchCSV();
+  }, [resourceId]);
+
+  if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
+  if (error) return <p className="text-sm text-destructive">Error loading CSV: {error}</p>;
+  if (csvData.length === 0) return <p className="text-sm text-muted-foreground">No data</p>;
+
+  const headers = csvData[0];
+  const rows = csvData.slice(1);
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="border-b border-border">
+            {headers.map((header, i) => (
+              <th key={i} className="text-left p-2 font-semibold bg-muted/50">
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} className="border-b border-border/50">
+              {row.map((cell, j) => (
+                <td key={j} className="p-2">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Text File Viewer Component
+function TextFileViewer({ resourceId }) {
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchText = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:3001/api/resources/${resourceId}/view?token=${localStorage.getItem('token')}`
+        );
+        const content = await response.text();
+        setText(content);
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    fetchText();
+  }, [resourceId]);
+
+  if (loading) return 'Loading...';
+  if (error) return `Error loading file: ${error}`;
+  return text;
 }
 
 export default function TopicDetail() {
@@ -256,6 +388,7 @@ export default function TopicDetail() {
     content: '',
     url: '',
     todoItems: [],
+    file: null,
   });
   const [newTodoItem, setNewTodoItem] = useState('');
   const [showResourceDetail, setShowResourceDetail] = useState(false);
@@ -338,12 +471,26 @@ export default function TopicDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries(['topic', id]);
       setShowAddResource(false);
-      setNewResource({ title: '', description: '', type: 'note', content: '', url: '', todoItems: [] });
+      setNewResource({ title: '', description: '', type: 'note', content: '', url: '', todoItems: [], file: null });
       setNewTodoItem('');
       toast.success("Resource added successfully!");
     },
     onError: (error) => {
       toast.error(error.message || "Failed to add resource");
+    },
+  });
+
+  // File upload mutation
+  const uploadFileMutation = useMutation({
+    mutationFn: ({ file, title, description }) => resourcesAPI.uploadFile(id, file, title, description),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['topic', id]);
+      setShowAddResource(false);
+      setNewResource({ title: '', description: '', type: 'note', content: '', url: '', todoItems: [], file: null });
+      toast.success("File uploaded successfully!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to upload file");
     },
   });
 
@@ -501,6 +648,21 @@ export default function TopicDetail() {
 
   const handleAddResource = (e) => {
     e.preventDefault();
+
+    // Handle file upload separately
+    if (newResource.type === 'file') {
+      if (!newResource.file) {
+        toast.error("Please select a file to upload");
+        return;
+      }
+      uploadFileMutation.mutate({
+        file: newResource.file,
+        title: newResource.title,
+        description: newResource.description,
+      });
+      return;
+    }
+
     if (!newResource.title.trim()) {
       toast.error("Please enter a resource title");
       return;
@@ -1070,7 +1232,7 @@ export default function TopicDetail() {
                 <Label htmlFor="resourceType">Type</Label>
                 <Select
                   value={newResource.type}
-                  onValueChange={(value) => setNewResource({ ...newResource, type: value, todoItems: [] })}
+                  onValueChange={(value) => setNewResource({ ...newResource, type: value, todoItems: [], file: null })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -1079,6 +1241,7 @@ export default function TopicDetail() {
                     <SelectItem value="note">Note</SelectItem>
                     <SelectItem value="external_link">External Link</SelectItem>
                     <SelectItem value="todo">Todo List</SelectItem>
+                    <SelectItem value="file">File Upload</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1218,6 +1381,44 @@ export default function TopicDetail() {
                   )}
                 </div>
               )}
+
+              {newResource.type === 'file' && (
+                <div className="space-y-2">
+                  <Label htmlFor="resourceFile">Choose File</Label>
+                  <Input
+                    id="resourceFile"
+                    type="file"
+                    accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        // Check file size (10MB limit)
+                        if (file.size > 10 * 1024 * 1024) {
+                          toast.error('File too large. Maximum size is 10MB');
+                          e.target.value = '';
+                          return;
+                        }
+                        setNewResource({ ...newResource, file, title: newResource.title || file.name });
+                      }
+                    }}
+                    required
+                  />
+                  {newResource.file && (
+                    <div className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/50">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{newResource.file.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(newResource.file.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Supported formats: PDF, DOCX, DOC, XLSX, XLS, CSV, TXT, PNG, JPG, GIF, WEBP, SVG (Max: 10MB)
+                  </p>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
@@ -1230,10 +1431,10 @@ export default function TopicDetail() {
               </Button>
               <Button
                 type="submit"
-                disabled={createResourceMutation.isPending}
+                disabled={createResourceMutation.isPending || uploadFileMutation.isPending}
                 className="ai-gradient-bg"
               >
-                {createResourceMutation.isPending ? 'Adding...' : 'Add Resource'}
+                {createResourceMutation.isPending || uploadFileMutation.isPending ? (newResource.type === 'file' ? 'Uploading...' : 'Adding...') : 'Add Resource'}
               </Button>
             </DialogFooter>
           </form>
@@ -1259,6 +1460,17 @@ export default function TopicDetail() {
                         case "note": return <StickyNote className="w-5 h-5" />;
                         case "capture": return <FileText className="w-5 h-5" />;
                         case "todo": return <CheckSquare className="w-5 h-5" />;
+                        case "file": {
+                          if (currentResource.fileType?.startsWith('image/')) {
+                            return <FileImage className="w-5 h-5" />;
+                          } else if (currentResource.fileType === 'application/pdf') {
+                            return <FileText className="w-5 h-5" />;
+                          } else if (currentResource.fileType === 'text/csv' || currentResource.fileType?.includes('spreadsheet')) {
+                            return <FileSpreadsheet className="w-5 h-5" />;
+                          } else {
+                            return <File className="w-5 h-5" />;
+                          }
+                        }
                         default: return <Lightbulb className="w-5 h-5" />;
                       }
                     };
@@ -1285,7 +1497,78 @@ export default function TopicDetail() {
               </DialogHeader>
 
               <div className="py-4">
-                {currentResource.type === 'todo' ? (
+                {currentResource.type === 'file' ? (
+                  <div className="space-y-4">
+                    {/* File Info */}
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
+                      <div className="p-2 rounded-lg bg-blue-500/10">
+                        {currentResource.fileType?.startsWith('image/') ? <FileImage className="w-5 h-5 text-blue-400" /> :
+                         currentResource.fileType === 'application/pdf' ? <FileText className="w-5 h-5 text-blue-400" /> :
+                         currentResource.fileType === 'text/csv' || currentResource.fileType?.includes('spreadsheet') ? <FileSpreadsheet className="w-5 h-5 text-blue-400" /> :
+                         <File className="w-5 h-5 text-blue-400" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{currentResource.fileName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {currentResource.fileSize ? `${(currentResource.fileSize / 1024).toFixed(1)} KB` : 'Unknown size'}
+                        </p>
+                      </div>
+                      <a
+                        href={`http://localhost:3001/api/resources/${currentResource.id}/download?token=${localStorage.getItem('token')}`}
+                        download
+                        className="shrink-0"
+                      >
+                        <Button variant="outline" size="sm">
+                          <Download className="w-4 h-4 mr-2" />
+                          Download
+                        </Button>
+                      </a>
+                    </div>
+
+                    {/* File Viewer */}
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      {currentResource.fileType?.startsWith('image/') ? (
+                        <img
+                          src={`http://localhost:3001/api/resources/${currentResource.id}/view?token=${localStorage.getItem('token')}`}
+                          alt={currentResource.fileName}
+                          className="w-full h-auto max-h-[60vh] object-contain bg-muted"
+                        />
+                      ) : currentResource.fileType === 'application/pdf' ? (
+                        <iframe
+                          src={`http://localhost:3001/api/resources/${currentResource.id}/view?token=${localStorage.getItem('token')}`}
+                          className="w-full h-[60vh]"
+                          title={currentResource.fileName}
+                        />
+                      ) : currentResource.fileType === 'text/csv' ? (
+                        <div className="p-4 max-h-[60vh] overflow-auto">
+                          <CSVViewer resourceId={currentResource.id} />
+                        </div>
+                      ) : currentResource.fileType === 'text/plain' ? (
+                        <div className="p-4 max-h-[60vh] overflow-auto">
+                          <pre className="text-sm whitespace-pre-wrap font-mono">
+                            <TextFileViewer resourceId={currentResource.id} />
+                          </pre>
+                        </div>
+                      ) : (
+                        <div className="p-8 text-center">
+                          <File className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Preview not available for this file type
+                          </p>
+                          <a
+                            href={`http://localhost:3001/api/resources/${currentResource.id}/download?token=${localStorage.getItem('token')}`}
+                            download
+                          >
+                            <Button variant="outline">
+                              <Download className="w-4 h-4 mr-2" />
+                              Download to View
+                            </Button>
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : currentResource.type === 'todo' ? (
                   (() => {
                     let todoItems = [];
                     try {

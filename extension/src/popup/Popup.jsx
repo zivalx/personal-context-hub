@@ -220,6 +220,24 @@ const Popup = () => {
 
         try {
           await resourcesAPI.create(selectedTopicId, resourceData);
+
+          // Notify web app to refresh data immediately
+          chrome.tabs.query({}, (tabs) => {
+            tabs.forEach((tab) => {
+              if (tab.url && (tab.url.includes('localhost:5173') || tab.url.includes(WEB_APP_URL))) {
+                chrome.tabs.sendMessage(tab.id, {
+                  type: 'CONTEXT_HUB_REFRESH',
+                  action: 'resource_created',
+                  topicId: selectedTopicId
+                }, () => {
+                  // Ignore errors if web app isn't loaded
+                  if (chrome.runtime.lastError) {
+                    console.log('Web app not available for refresh notification');
+                  }
+                });
+              }
+            });
+          });
         } catch (resourceError) {
           console.error('Failed to add to topic:', resourceError);
           // Don't fail the whole capture if adding to topic fails

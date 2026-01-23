@@ -68,6 +68,18 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const setToken = async (token) => {
+    try {
+      localStorage.setItem('token', token);
+      // Fetch user data with the new token
+      const response = await authAPI.getCurrentUser();
+      setUser(response.data.user);
+    } catch (err) {
+      console.error('Failed to set token:', err);
+      throw err;
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -75,6 +87,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    setToken,
     isAuthenticated: !!user,
   };
 

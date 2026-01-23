@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { Search, Bell, Plus, Sparkles } from "lucide-react";
+import { Search, Bell, Plus, Sparkles, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AIChat } from "@/components/ai/AIChat";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export function Header({ title, subtitle, onCreateTopic, icon }) {
   const [showAIChat, setShowAIChat] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   // Keyboard shortcut for AI chat (Cmd+J or Ctrl+J)
   useEffect(() => {
@@ -50,6 +52,19 @@ export function Header({ title, subtitle, onCreateTopic, icon }) {
           </div>
 
           {/* Actions */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? (
+              <Moon className="w-4 h-4" />
+            ) : (
+              <Sun className="w-4 h-4" />
+            )}
+          </Button>
+
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="w-4 h-4" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />

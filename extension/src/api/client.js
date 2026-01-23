@@ -98,3 +98,13 @@ export const capturesAPI = {
     return fetchWithAuth('/api/captures');
   },
 };
+
+// Resources API
+export const resourcesAPI = {
+  create: async (topicId, resourceData) => {
+    return fetchWithAuth(`/api/topics/${topicId}/resources`, {
+      method: 'POST',
+      body: JSON.stringify(resourceData),
+    });
+  },
+};

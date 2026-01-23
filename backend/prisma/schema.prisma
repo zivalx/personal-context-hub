@@ -121,7 +121,7 @@ model Resource {
   id          String   @id @default(uuid())
   title       String
   description String?
-  type        String   // "capture", "note", "external_link"
+  type        String   // "capture", "note", "external_link", "file"
   order       Int      @default(0) // For custom ordering within a topic
   bookmarked  Boolean  @default(false) // User bookmark flag
   unread      Boolean  @default(true)  // Unread flag - true when added to topic
@@ -138,6 +138,12 @@ model Resource {
   // Custom content (for notes or external links)
   content     String?
   url         String?
+
+  // File upload fields
+  fileName     String?  // Original file name
+  filePath     String?  // Server file path
+  fileType     String?  // MIME type (e.g., "application/pdf", "image/png")
+  fileSize     Int?     // File size in bytes
 
   topicId     String
   topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)

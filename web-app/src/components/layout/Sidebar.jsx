@@ -9,11 +9,14 @@ import {
   Plus,
   LogOut,
   BarChart3,
-  Shield
+  Shield,
+  Sun,
+  Moon
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { SearchModal } from "@/components/search/SearchModal";
 
 const baseNavigation = [
@@ -30,6 +33,7 @@ const adminNavigation = [
 export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], onCreateTopic }) {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [showSearch, setShowSearch] = useState(false);
 
   // Combine navigation items, showing admin panel only for admin users
@@ -161,6 +165,23 @@ export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], o
             {user.email}
           </div>
         )}
+        <button
+          onClick={toggleTheme}
+          className="nav-item w-full"
+          title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+        >
+          {theme === 'light' ? (
+            <>
+              <Moon className="w-4 h-4" />
+              <span className="text-sm">Dark Mode</span>
+            </>
+          ) : (
+            <>
+              <Sun className="w-4 h-4" />
+              <span className="text-sm">Light Mode</span>
+            </>
+          )}
+        </button>
         <button className="nav-item w-full">
           <Settings className="w-4 h-4" />
           <span className="text-sm">Settings</span>

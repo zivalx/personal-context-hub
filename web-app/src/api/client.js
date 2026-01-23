@@ -215,6 +215,41 @@ export const resourcesAPI = {
       method: 'PUT',
     });
   },
+
+  // Upload file resource
+  uploadFile: async (topicId, file, title, description) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (title) formData.append('title', title);
+    if (description) formData.append('description', description);
+
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/topics/${topicId}/resources/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to upload file');
+    }
+    return data;
+  },
+
+  // Get file URL for viewing
+  getFileViewUrl: (id) => {
+    const token = localStorage.getItem('token');
+    return `${API_BASE_URL}/api/resources/${id}/view?token=${token}`;
+  },
+
+  // Get file URL for downloading
+  getFileDownloadUrl: (id) => {
+    const token = localStorage.getItem('token');
+    return `${API_BASE_URL}/api/resources/${id}/download?token=${token}`;
+  },
 };
 
 // Search API

@@ -35,6 +35,14 @@ export default function Index() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  // Get time-based greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
   // Fetch topics from API
   const { data: topicsData, isLoading: topicsLoading } = useQuery({
     queryKey: ['topics'],
@@ -192,9 +200,20 @@ export default function Index() {
     });
   };
 
-  const handleOpenCaptureDetail = (capture) => {
+  const handleOpenCaptureDetail = async (capture) => {
     setSelectedCapture(capture);
     setShowCaptureDetail(true);
+
+    // Mark as read if unread
+    if (capture.unread) {
+      try {
+        await capturesAPI.markAsRead(capture.id);
+        queryClient.invalidateQueries(['captures']);
+        queryClient.invalidateQueries(['bookmarks']);
+      } catch (error) {
+        console.error('Failed to mark capture as read:', error);
+      }
+    }
   };
 
   const handleCopyContent = (content) => {
@@ -287,8 +306,9 @@ export default function Index() {
 
       <div className="flex-1 flex flex-col">
         <Header
-          title={`Welcome back${firstName ? `, ${firstName}` : ''}!`}
+          title={`${getGreeting()}${firstName ? `, ${firstName}` : ''}!`}
           subtitle={`${totalResources} resources across ${topics.length} topics`}
+          onCreateTopic={() => setShowCreateTopic(true)}
         />
 
         <main className="flex-1 overflow-y-auto p-6">
@@ -401,6 +421,7 @@ export default function Index() {
                             source={capture.source}
                             timestamp={new Date(capture.createdAt).toLocaleDateString()}
                             bookmarked={true}
+                            unread={capture.unread}
                             onBookmarkToggle={(captureId) => bookmarkCaptureMutation.mutate(captureId)}
                             onEdit={() => handleEditCapture(capture)}
                             onDelete={() => handleDeleteCapture(capture.id)}
@@ -457,6 +478,7 @@ export default function Index() {
                     source={capture.source}
                     timestamp={new Date(capture.createdAt).toLocaleDateString()}
                     bookmarked={capture.bookmarked}
+                    unread={capture.unread}
                     onBookmarkToggle={(captureId) => bookmarkCaptureMutation.mutate(captureId)}
                     className="opacity-0 animate-fade-up"
                     style={{ animationDelay: `${(activeItem === 'All Items' ? 0.6 : 0.3) + index * 0.05}s`, animationFillMode: 'forwards' }}

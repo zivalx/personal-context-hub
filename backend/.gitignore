@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.local
+.env.production
+.env.development
+logs/
+*.log
+dist/
+build/
+.DS_Store
+
+# Prisma
+prisma/migrations/*/migration.sql

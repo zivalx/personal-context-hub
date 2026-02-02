@@ -149,6 +149,12 @@ export const capturesAPI = {
       method: 'DELETE',
     });
   },
+
+  markAsRead: async (id) => {
+    return fetchWithAuth(`/api/captures/${id}/read`, {
+      method: 'PUT',
+    });
+  },
 };
 
 // Resources API
@@ -177,11 +183,72 @@ export const resourcesAPI = {
     });
   },
 
+  removeFromTopic: async (id) => {
+    return fetchWithAuth(`/api/resources/${id}/remove-from-topic`, {
+      method: 'DELETE',
+    });
+  },
+
+  copyToTopic: async (id, topicId) => {
+    return fetchWithAuth(`/api/resources/${id}/copy-to-topic`, {
+      method: 'POST',
+      body: JSON.stringify({ topicId }),
+    });
+  },
+
+  moveToTopic: async (id, topicId) => {
+    return fetchWithAuth(`/api/resources/${id}/move-to-topic`, {
+      method: 'PUT',
+      body: JSON.stringify({ topicId }),
+    });
+  },
+
   reorder: async (topicId, resourceOrders) => {
     return fetchWithAuth(`/api/topics/${topicId}/resources/reorder`, {
       method: 'PUT',
       body: JSON.stringify({ resourceOrders }),
     });
+  },
+
+  markAsRead: async (id) => {
+    return fetchWithAuth(`/api/resources/${id}/read`, {
+      method: 'PUT',
+    });
+  },
+
+  // Upload file resource
+  uploadFile: async (topicId, file, title, description) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (title) formData.append('title', title);
+    if (description) formData.append('description', description);
+
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/topics/${topicId}/resources/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to upload file');
+    }
+    return data;
+  },
+
+  // Get file URL for viewing
+  getFileViewUrl: (id) => {
+    const token = localStorage.getItem('token');
+    return `${API_BASE_URL}/api/resources/${id}/view?token=${token}`;
+  },
+
+  // Get file URL for downloading
+  getFileDownloadUrl: (id) => {
+    const token = localStorage.getItem('token');
+    return `${API_BASE_URL}/api/resources/${id}/download?token=${token}`;
   },
 };
 
@@ -215,5 +282,115 @@ export const bookmarksAPI = {
     return fetchWithAuth(`/api/bookmarks/resource/${id}`, {
       method: 'PUT',
     });
+  },
+};
+
+// Groups API
+export const groupsAPI = {
+  getByTopic: async (topicId) => {
+    return fetchWithAuth(`/api/topics/${topicId}/groups`);
+  },
+
+  create: async (topicId, groupData) => {
+    return fetchWithAuth(`/api/topics/${topicId}/groups`, {
+      method: 'POST',
+      body: JSON.stringify(groupData),
+    });
+  },
+
+  update: async (id, groupData) => {
+    return fetchWithAuth(`/api/groups/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(groupData),
+    });
+  },
+
+  delete: async (id) => {
+    return fetchWithAuth(`/api/groups/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  reorder: async (topicId, groupOrders) => {
+    return fetchWithAuth(`/api/topics/${topicId}/groups/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify({ groupOrders }),
+    });
+  },
+};
+
+// Analytics API
+export const analyticsAPI = {
+  /**
+   * Get user analytics overview
+   * @param {number} days - Number of days to fetch (default: 30)
+   */
+  getOverview: async (days = 30) => {
+    return fetchWithAuth(`/api/analytics/overview?days=${days}`);
+  },
+
+  /**
+   * Get event history
+   * @param {object} params - Query parameters (eventType, limit, offset, days)
+   */
+  getEventHistory: async (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return fetchWithAuth(`/api/analytics/events?${queryParams}`);
+  },
+
+  /**
+   * Get user stats summary
+   */
+  getStats: async () => {
+    return fetchWithAuth('/api/analytics/stats');
+  },
+
+  /**
+   * Track an analytics event
+   * @param {object} eventData - Event data (eventType, eventName, properties, source, sessionId)
+   */
+  trackEvent: async (eventData) => {
+    return fetchWithAuth('/api/analytics/events', {
+      method: 'POST',
+      body: JSON.stringify(eventData),
+    });
+  },
+};
+
+// Admin API
+export const adminAPI = {
+  /**
+   * Get all users
+   * @param {object} params - Query parameters (page, limit, sortBy, order)
+   */
+  getUsers: async (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return fetchWithAuth(`/api/admin/users?${queryParams}`);
+  },
+
+  /**
+   * Get user detail
+   * @param {string} userId - User ID
+   * @param {number} days - Number of days for activity (default: 30)
+   */
+  getUserDetail: async (userId, days = 30) => {
+    return fetchWithAuth(`/api/admin/users/${userId}?days=${days}`);
+  },
+
+  /**
+   * Get all analytics events
+   * @param {object} params - Query parameters (page, limit, userId, eventType, days, sortBy, order)
+   */
+  getAllEvents: async (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return fetchWithAuth(`/api/admin/events?${queryParams}`);
+  },
+
+  /**
+   * Get platform analytics overview
+   * @param {number} days - Number of days to fetch (default: 30)
+   */
+  getPlatformAnalytics: async (days = 30) => {
+    return fetchWithAuth(`/api/admin/analytics?days=${days}`);
   },
 };

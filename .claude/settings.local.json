@@ -9,7 +9,9 @@
       "Bash(npx prisma migrate:*)",
       "Bash(npx prisma:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(taskkill //F //PID 38436)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

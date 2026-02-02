@@ -56,36 +56,36 @@ export function TopicCard({
 
   return (
     <div
-      className={cn("glass-card-hover p-5 cursor-pointer group", className)}
+      className={cn("glass-card-hover p-6 cursor-pointer group", className)}
       style={style}
       onClick={handleCardClick}
     >
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-5">
         <div className="flex items-center gap-3">
           <div
-            className="w-3 h-3 rounded-full"
+            className="w-3.5 h-3.5 rounded-full"
             style={{ backgroundColor: color }}
           />
-          <h3 className="font-medium text-foreground">{name}</h3>
+          <h3 className="font-medium text-base text-foreground">{name}</h3>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={handleBookmarkClick}
             className={cn(
-              "p-1 hover:bg-muted rounded transition-opacity",
+              "p-1.5 hover:bg-muted rounded transition-opacity",
               bookmarked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             )}
             title={bookmarked ? "Remove bookmark" : "Add bookmark"}
           >
             <Bookmark className={cn(
-              "w-4 h-4",
+              "w-4.5 h-4.5",
               bookmarked ? "fill-primary text-primary" : "text-muted-foreground"
             )} />
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded">
-                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+              <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-muted rounded">
+                <MoreHorizontal className="w-4.5 h-4.5 text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
@@ -102,7 +102,7 @@ export function TopicCard({
               Export
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={(e) => handleMenuAction(e as unknown as React.MouseEvent, 'delete')}
               className="text-destructive focus:text-destructive"
             >
@@ -114,29 +114,29 @@ export function TopicCard({
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+      <p className="text-[15px] text-muted-foreground mb-5 line-clamp-2">
         {description}
       </p>
 
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+      <div className="flex items-center gap-4 text-sm text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <FileText className="w-3.5 h-3.5" />
+          <FileText className="w-4 h-4" />
           {itemCount} items
         </span>
         <span className="flex items-center gap-1.5">
-          <Link2 className="w-3.5 h-3.5" />
+          <Link2 className="w-4 h-4" />
           {linkCount} links
         </span>
         <span className="flex items-center gap-1.5">
-          <Lightbulb className="w-3.5 h-3.5" />
+          <Lightbulb className="w-4 h-4" />
           {noteCount} notes
         </span>
       </div>
 
-      <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Updated {lastUpdated}</span>
+      <div className="mt-5 pt-5 border-t border-border/50 flex items-center justify-between">
+        <span className="text-sm text-muted-foreground">Updated {lastUpdated}</span>
         <div className="flex items-center gap-1">
-          <span className="text-xs font-mono text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-sm font-mono text-primary opacity-0 group-hover:opacity-100 transition-opacity">
             View →
           </span>
         </div>

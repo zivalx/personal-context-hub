@@ -7,23 +7,39 @@ import {
   Settings,
   Search,
   Plus,
-  LogOut
+  LogOut,
+  BarChart3,
+  Shield,
+  Sun,
+  Moon
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { SearchModal } from "@/components/search/SearchModal";
 
-const navigation = [
-  { name: "All Items", icon: Layers },
-  { name: "Recent", icon: Inbox },
-  { name: "Bookmarks", icon: Bookmark },
+const baseNavigation = [
+  { name: "All Items", icon: Layers, path: "/" },
+  { name: "Recent", icon: Inbox, path: "/" },
+  { name: "Bookmarks", icon: Bookmark, path: "/" },
+  { name: "Analytics", icon: BarChart3, path: "/analytics" },
+];
+
+const adminNavigation = [
+  { name: "Admin Panel", icon: Shield, path: "/admin", adminOnly: true },
 ];
 
 export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], onCreateTopic }) {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [showSearch, setShowSearch] = useState(false);
+
+  // Combine navigation items, showing admin panel only for admin users
+  const navigation = user?.role === 'admin'
+    ? [...baseNavigation, ...adminNavigation]
+    : baseNavigation;
 
   // Keyboard shortcut for search (Cmd+K or Ctrl+K)
   useEffect(() => {
@@ -51,7 +67,10 @@ export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], o
           <div className="w-8 h-8 rounded-lg ai-gradient-bg flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-semibold text-lg">Context Hub</span>
+          <div className="flex flex-col">
+            <span className="font-semibold text-lg leading-tight">youtopical</span>
+            <span className="text-xs text-muted-foreground leading-tight">your personal context hub</span>
+          </div>
         </div>
       </div>
 
@@ -78,7 +97,7 @@ export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], o
               key={item.name}
               onClick={() => {
                 onItemSelect?.(item.name);
-                navigate('/');
+                navigate(item.path);
               }}
               className={cn(
                 "nav-item w-full justify-between",
@@ -99,7 +118,12 @@ export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], o
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Topics</span>
             {onCreateTopic && (
               <button
-                onClick={onCreateTopic}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Create Topic button clicked', onCreateTopic);
+                  onCreateTopic();
+                }}
                 className="p-1 hover:bg-muted rounded transition-colors"
                 title="Create Topic"
               >
@@ -141,6 +165,23 @@ export function Sidebar({ activeItem = "All Items", onItemSelect, topics = [], o
             {user.email}
           </div>
         )}
+        <button
+          onClick={toggleTheme}
+          className="nav-item w-full"
+          title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+        >
+          {theme === 'light' ? (
+            <>
+              <Moon className="w-4 h-4" />
+              <span className="text-sm">Dark Mode</span>
+            </>
+          ) : (
+            <>
+              <Sun className="w-4 h-4" />
+              <span className="text-sm">Light Mode</span>
+            </>
+          )}
+        </button>
         <button className="nav-item w-full">
           <Settings className="w-4 h-4" />
           <span className="text-sm">Settings</span>

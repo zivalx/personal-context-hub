@@ -11,14 +11,20 @@ dist/
 build/
 *.tsbuildinfo
 
-# Environment variables
+# Environment variables - NEVER commit these!
 .env
 .env.local
+.env.development
 .env.development.local
+.env.test
 .env.test.local
+.env.production
 .env.production.local
+**/.env
+**/.env.local
+**/.env.production
 
-# Logs
+# Logs - sensitive data may be logged
 logs
 *.log
 npm-debug.log*
@@ -26,6 +32,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+**/logs/
+backend/logs/
 
 # Editor directories and files
 .vscode/*
@@ -51,3 +59,14 @@ extension/dist/
 # Temporary files
 *.tmp
 *.temp
+
+# Documentation (keep only in repo, not in production)
+DEPLOYMENT.md
+DEPLOYMENT_ACTION_PLAN.md
+GOOGLE_OAUTH_SETUP.md
+OAUTH_IMPLEMENTATION_SUMMARY.md
+PRODUCTION_READY.md
+QUICKSTART_OAUTH.md
+USER_FLOW_ANALYSIS.md
+SECURITY_CHECKLIST.md
+PRODUCTION_AUDIT_REPORT.md

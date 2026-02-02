@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, MoreHorizontal, Trash2, Link2, Lightbulb, StickyNote, ExternalLink, FileText, Edit, Mic, MicOff, ChevronDown, ChevronRight, Bookmark, CheckSquare, Square, Copy, GripVertical, FolderMinus, FolderInput, Layers, File, FileImage, FileSpreadsheet, Upload, Download } from "lucide-react";
+import { ArrowLeft, Plus, MoreHorizontal, Trash2, Link2, Lightbulb, StickyNote, ExternalLink, FileText, Edit, Mic, MicOff, ChevronDown, ChevronRight, Bookmark, CheckSquare, Square, Copy, GripVertical, FolderMinus, FolderInput, Layers, File, FileImage, FileSpreadsheet, Upload, Download, X } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -63,23 +63,23 @@ function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToT
 
   const getIcon = () => {
     switch (resource.type) {
-      case "external_link": return <Link2 className="w-4 h-4" />;
-      case "note": return <StickyNote className="w-4 h-4" />;
-      case "capture": return <FileText className="w-4 h-4" />;
-      case "todo": return <CheckSquare className="w-4 h-4" />;
+      case "external_link": return <Link2 className="w-5 h-5" />;
+      case "note": return <StickyNote className="w-5 h-5" />;
+      case "capture": return <FileText className="w-5 h-5" />;
+      case "todo": return <CheckSquare className="w-5 h-5" />;
       case "file": {
         // Show different icons based on file type
         if (resource.fileType?.startsWith('image/')) {
-          return <FileImage className="w-4 h-4" />;
+          return <FileImage className="w-5 h-5" />;
         } else if (resource.fileType === 'application/pdf') {
-          return <FileText className="w-4 h-4" />;
+          return <FileText className="w-5 h-5" />;
         } else if (resource.fileType === 'text/csv' || resource.fileType?.includes('spreadsheet')) {
-          return <FileSpreadsheet className="w-4 h-4" />;
+          return <FileSpreadsheet className="w-5 h-5" />;
         } else {
-          return <File className="w-4 h-4" />;
+          return <File className="w-5 h-5" />;
         }
       }
-      default: return <Lightbulb className="w-4 h-4" />;
+      default: return <Lightbulb className="w-5 h-5" />;
     }
   };
 
@@ -129,53 +129,53 @@ function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToT
 
   return (
     <div
-      className="glass-card-hover p-4 group flex flex-col h-full cursor-pointer relative"
+      className="glass-card-hover p-5 group flex flex-col h-full cursor-pointer relative"
       onClick={handleCardClick}
     >
       {/* Unread indicator */}
       {resource.unread && (
-        <div className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full" title="Unread" />
+        <div className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-primary rounded-full" title="Unread" />
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
           {/* Drag Handle */}
           {dragHandleProps && (
             <button
               {...dragHandleProps}
-              className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity"
+              className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={(e) => e.stopPropagation()}
             >
-              <GripVertical className="w-4 h-4 text-muted-foreground" />
+              <GripVertical className="w-5 h-5 text-muted-foreground" />
             </button>
           )}
-          <div className={cn("p-2 rounded-lg shrink-0", getTypeColor())}>
+          <div className={cn("p-2.5 rounded-lg shrink-0", getTypeColor())}>
             {getIcon()}
           </div>
-          <h4 className="font-medium text-sm text-foreground truncate">{resource.title}</h4>
+          <h4 className="font-medium text-[15px] text-foreground truncate">{resource.title}</h4>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={(e) => { e.stopPropagation(); onBookmarkToggle?.(resource.id); }}
             className={cn(
-              "p-1 hover:bg-muted rounded transition-opacity",
+              "p-1.5 hover:bg-muted rounded transition-opacity",
               resource.bookmarked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             )}
             title={resource.bookmarked ? "Remove bookmark" : "Add bookmark"}
           >
             <Bookmark className={cn(
-              "w-3.5 h-3.5",
+              "w-4 h-4",
               resource.bookmarked ? "fill-primary text-primary" : "text-muted-foreground"
             )} />
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-muted rounded"
                 onClick={(e) => e.stopPropagation()}
               >
-                <MoreHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
+                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -220,14 +220,14 @@ function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToT
       </div>
 
       {/* Content Preview */}
-      <div className="mb-2 flex-1 min-h-[3rem]">
+      <div className="mb-3 flex-1 min-h-[3.5rem]">
         {resource.type !== 'todo' && resource.type !== 'file' && displayContent && (
-          <p className="text-xs text-muted-foreground line-clamp-2">{displayContent}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2">{displayContent}</p>
         )}
 
         {/* Todo Preview */}
         {resource.type === 'todo' && todoItems.length > 0 && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {completedCount}/{todoItems.length} completed
           </p>
         )}
@@ -235,9 +235,9 @@ function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToT
         {/* File Preview */}
         {resource.type === 'file' && (
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground truncate">{resource.fileName}</p>
+            <p className="text-sm text-muted-foreground truncate">{resource.fileName}</p>
             {resource.fileSize && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {(resource.fileSize / 1024).toFixed(1)} KB
               </p>
             )}
@@ -246,14 +246,14 @@ function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToT
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between mt-auto pt-3 border-t border-border/50">
+      <div className="flex items-center justify-between mt-auto pt-3.5 border-t border-border/50">
         <div className="flex items-center gap-2">
           {displaySource && resource.type !== 'file' && (
             <button
               onClick={handleLinkClick}
-              className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+              className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors"
             >
-              <ExternalLink className="w-3 h-3" />
+              <ExternalLink className="w-3.5 h-3.5" />
               {displaySource}
             </button>
           )}
@@ -262,14 +262,14 @@ function ResourceCard({ resource, onDelete, onEdit, onRemoveFromTopic, onMoveToT
               href={`http://localhost:3001/api/resources/${resource.id}/download?token=${localStorage.getItem('token')}`}
               download
               onClick={(e) => e.stopPropagation()}
-              className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+              className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors"
             >
-              <Download className="w-3 h-3" />
+              <Download className="w-3.5 h-3.5" />
               Download
             </a>
           )}
         </div>
-        <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className="text-sm text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
           Click to view
         </span>
       </div>
@@ -415,6 +415,7 @@ export default function TopicDetail() {
     url: '',
   });
   const [newTodoItemInModal, setNewTodoItemInModal] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
 
   // Speech to text for Add Resource
   const addResourceSpeech = useSpeechToText();
@@ -1385,38 +1386,88 @@ export default function TopicDetail() {
               {newResource.type === 'file' && (
                 <div className="space-y-2">
                   <Label htmlFor="resourceFile">Choose File</Label>
-                  <Input
-                    id="resourceFile"
-                    type="file"
-                    accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
+                  <div
+                    className={`relative border-2 border-dashed rounded-lg p-6 transition-colors ${
+                      isDragging
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const file = e.dataTransfer.files?.[0];
                       if (file) {
                         // Check file size (10MB limit)
                         if (file.size > 10 * 1024 * 1024) {
                           toast.error('File too large. Maximum size is 10MB');
-                          e.target.value = '';
+                          return;
+                        }
+                        // Check file type
+                        const allowedTypes = ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.csv', '.txt', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
+                        const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+                        if (!allowedTypes.includes(fileExt)) {
+                          toast.error('Invalid file type. Please upload a supported format.');
                           return;
                         }
                         setNewResource({ ...newResource, file, title: newResource.title || file.name });
                       }
                     }}
-                    required
-                  />
+                  >
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <Upload className="w-8 h-8 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Drop file here or click to browse</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          PDF, DOCX, XLSX, Images (Max: 10MB)
+                        </p>
+                      </div>
+                    </div>
+                    <Input
+                      id="resourceFile"
+                      type="file"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Check file size (10MB limit)
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast.error('File too large. Maximum size is 10MB');
+                            e.target.value = '';
+                            return;
+                          }
+                          setNewResource({ ...newResource, file, title: newResource.title || file.name });
+                        }
+                      }}
+                    />
+                  </div>
                   {newResource.file && (
-                    <div className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/50">
-                      <FileText className="w-4 h-4 text-muted-foreground" />
+                    <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/50">
+                      <FileText className="w-5 h-5 text-primary" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm truncate">{newResource.file.name}</p>
+                        <p className="text-sm font-medium truncate">{newResource.file.name}</p>
                         <p className="text-xs text-muted-foreground">
                           {(newResource.file.size / 1024).toFixed(1)} KB
                         </p>
                       </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setNewResource({ ...newResource, file: null, title: '' })}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground">
-                    Supported formats: PDF, DOCX, DOC, XLSX, XLS, CSV, TXT, PNG, JPG, GIF, WEBP, SVG (Max: 10MB)
-                  </p>
                 </div>
               )}
             </div>

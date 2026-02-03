@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authAPI, capturesAPI, resourcesAPI } from '../api/client';
-
-const API_BASE_URL = 'http://localhost:3001';
-const WEB_APP_URL = 'http://localhost:5173';
+import { API_BASE_URL, WEB_APP_URL } from '../config.js';
 
 const Popup = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

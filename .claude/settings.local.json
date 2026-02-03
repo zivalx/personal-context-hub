@@ -11,7 +11,8 @@
       "mcp__ide__getDiagnostics",
       "Bash(cat:*)",
       "Bash(taskkill //F //PID 38436)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(node pre-deploy-check.js:*)"
     ],
     "deny": [],
     "ask": []

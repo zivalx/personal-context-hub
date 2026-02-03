@@ -20,6 +20,7 @@ interface TopicCardProps {
   lastUpdated: string;
   bookmarked?: boolean;
   onBookmarkToggle?: (id: string) => void;
+  onDelete?: (id: string) => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -35,6 +36,7 @@ export function TopicCard({
   lastUpdated,
   bookmarked = false,
   onBookmarkToggle,
+  onDelete,
   className,
   style
 }: TopicCardProps) {
@@ -46,7 +48,11 @@ export function TopicCard({
 
   const handleMenuAction = (e: React.MouseEvent, action: string) => {
     e.stopPropagation();
-    console.log(`${action} topic: ${name}`);
+    if (action === 'delete' && onDelete) {
+      onDelete(id);
+    } else {
+      console.log(`${action} topic: ${name}`);
+    }
   };
 
   const handleBookmarkClick = (e: React.MouseEvent) => {

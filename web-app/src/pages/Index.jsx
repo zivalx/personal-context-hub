@@ -78,6 +78,19 @@ export default function Index() {
     },
   });
 
+  // Delete topic mutation
+  const deleteTopicMutation = useMutation({
+    mutationFn: topicsAPI.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['topics']);
+      queryClient.invalidateQueries(['bookmarks']);
+      toast.success("Topic deleted successfully!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to delete topic");
+    },
+  });
+
   // Update capture mutation
   const updateCaptureMutation = useMutation({
     mutationFn: ({ id, data }) => capturesAPI.update(id, data),
@@ -177,6 +190,12 @@ export default function Index() {
       setShowCaptureDetail(false);
       setSelectedCapture(null);
       deleteCaptureMutation.mutate(captureId);
+    }
+  };
+
+  const handleDeleteTopic = (topicId) => {
+    if (confirm('Are you sure you want to delete this topic? All resources in this topic will also be deleted.')) {
+      deleteTopicMutation.mutate(topicId);
     }
   };
 
@@ -354,6 +373,7 @@ export default function Index() {
                       lastUpdated={new Date(topic.updatedAt).toLocaleDateString()}
                       bookmarked={topic.bookmarked}
                       onBookmarkToggle={(topicId) => bookmarkTopicMutation.mutate(topicId)}
+                      onDelete={handleDeleteTopic}
                       className="opacity-0 animate-fade-up"
                       style={{ animationDelay: `${0.3 + index * 0.1}s`, animationFillMode: 'forwards' }}
                     />
@@ -400,6 +420,7 @@ export default function Index() {
                             lastUpdated={new Date(topic.updatedAt).toLocaleDateString()}
                             bookmarked={true}
                             onBookmarkToggle={(topicId) => bookmarkTopicMutation.mutate(topicId)}
+                            onDelete={handleDeleteTopic}
                           />
                         ))}
                       </div>
